@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F3F4F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F11" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PODcut 리모컨">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>PODcut 리모컨</title>
+<!-- The phone remote for PODcut (익평삼): docs/REMOTE.md in the app's repository.
+     Public page: it holds no secret. The pairing token lives in this phone's storage only. -->
+<style>
+:root{
+  --window:#F3F4F6;--panel:#FFFFFF;--raised:#EEF0F3;--line:#DDE1E6;--line-strong:#C5CBD3;
+  --text:#15171A;--text2:#555B64;--text3:#858B94;--accent:#2563EB;--accent-soft:#E4ECFD;--accent-text:#1D4ED8;
+  --ok:#15803D;--ok-soft:#DCFCE7;--bad:#B91C1C;--bad-soft:#FEE2E2;--warn:#A16207;
+}
+@media (prefers-color-scheme: dark){:root{
+  --window:#0E0F11;--panel:#16181B;--raised:#1F2226;--line:#2C3036;--line-strong:#3A3F46;
+  --text:#ECEEF1;--text2:#A4A9B1;--text3:#858B94;--accent:#2F6FE4;--accent-soft:#1B2B4A;--accent-text:#8AB8FF;
+  --ok:#4ADE80;--ok-soft:#14321F;--bad:#F87171;--bad-soft:#3A1717;--warn:#FACC15;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--window);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+body{padding:env(safe-area-inset-top) 0 calc(24px + env(safe-area-inset-bottom))}
+main{max-width:560px;margin:0 auto;padding:0 16px}
+header{display:flex;align-items:center;gap:10px;padding:16px 0 8px}
+header img{width:32px;height:32px;border-radius:8px}
+header h1{font-size:19px;margin:0;flex:1}
+button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--raised);color:var(--text);cursor:pointer;min-height:40px}
+button.primary{background:var(--accent);color:#fff;font-weight:600}
+button.ghost{background:transparent;color:var(--accent-text);padding:8px 10px}
+button:disabled{opacity:.5}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin:12px 0;overflow:hidden}
+.card h2{font-size:13px;font-weight:600;color:var(--text3);margin:0;padding:12px 14px 6px;letter-spacing:.02em}
+.row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid var(--line);min-height:52px}
+.card h2+.row{border-top:0}
+.row .main{flex:1;min-width:0}
+.name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub{font-size:12.5px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{padding:14px;color:var(--text3);font-size:14px}
+.pill{font-size:12px;padding:3px 8px;border-radius:99px;background:var(--raised);color:var(--text2);white-space:nowrap}
+.pill.run{background:var(--accent-soft);color:var(--accent-text)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.bar{height:4px;border-radius:2px;background:var(--raised);margin-top:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .4s}
+.bar.wait i{width:30%;animation:slide 1.2s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
+.status{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text2);padding:0 2px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--text3)}
+.dot.on{background:var(--ok)}
+select{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;padding:8px 10px;max-width:100%}
+input{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;padding:10px 12px;width:100%}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.code{font:600 26px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.18em;text-transform:uppercase;text-align:center}
+.pair{padding:20px 16px;text-align:center}
+.pair p{color:var(--text2);margin:6px 0 16px}
+.hint{font-size:13px;color:var(--text3);margin:10px 2px}
+.error{color:var(--bad);font-size:14px;margin:10px 2px;min-height:1em}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:center;z-index:5}
+.sheet.open{display:flex}
+.sheet>div{background:var(--panel);width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.sheet h3{margin:0 0 4px;font-size:17px}
+.seg{display:flex;background:var(--raised);border-radius:10px;padding:3px;gap:3px;margin:8px 0 4px}
+.seg button{flex:1;background:transparent;min-height:36px;padding:6px}
+.seg button[aria-pressed=true]{background:var(--panel);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
+.actions{display:flex;gap:8px;margin-top:16px}
+.actions button{flex:1}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <header><img src="icon-192.png" alt=""><h1>PODcut 리모컨</h1><button class="ghost" id="menu" hidden>설정</button></header>
+
+  <section id="pairView" hidden>
+    <div class="card pair">
+      <h2 style="padding:0;font-size:17px;color:var(--text)">PC와 연결</h2>
+      <p>PC의 PODcut에서 <b>공유 → 휴대폰 리모컨…</b>을 열고 QR코드를 찍거나, 8자리 코드를 넣으세요.</p>
+      <input id="code" class="code" maxlength="9" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" placeholder="XXXX XXXX" aria-label="연결 코드">
+      <div class="actions"><button class="primary" id="pair">연결</button></div>
+      <div class="error" id="pairError" role="alert"></div>
+    </div>
+    <p class="hint" id="iosHint" hidden>아이폰에서 알림을 받으려면 먼저 공유 버튼 → <b>홈 화면에 추가</b>를 누르고, 홈 화면 아이콘으로 연 뒤 연결하세요. 사파리와 홈 화면 앱은 연결이 따로입니다.</p>
+  </section>
+
+  <section id="mainView" hidden>
+    <div class="status" id="pcLine"><span class="dot" id="pcDot"></span><span id="pcText">확인 중…</span><select id="pcPick" hidden aria-label="PC 고르기"></select></div>
+    <div class="card" id="jobsCard" hidden><h2>휴대폰에서 시작한 분석</h2><div id="jobs"></div></div>
+    <div class="card"><h2>새 녹화 파일</h2><div id="files"></div></div>
+    <div class="card"><h2>프로젝트</h2><div id="projects"></div></div>
+    <div class="card" id="pushCard" hidden>
+      <div class="row"><div class="main"><div class="name">완료 알림</div><div class="sub" id="pushText">분석이 끝나면 이 휴대폰에 알려 줍니다.</div></div><button id="push">켜기</button></div>
+    </div>
+    <div class="error" id="mainError" role="alert"></div>
+  </section>
+</main>
+
+<div class="sheet" id="startSheet" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+  <div>
+    <h3 id="startTitle">분석 시작</h3>
+    <div class="sub" id="startFile"></div>
+    <label for="startName">프로젝트 이름</label>
+    <input id="startName" maxlength="80">
+    <label>정리 방식</label>
+    <div class="seg" id="presets">
+      <button data-preset="light" aria-pressed="false">가볍게</button>
+      <button data-preset="recommended" aria-pressed="true">추천</button>
+      <button data-preset="transcript" aria-pressed="false">대본만</button>
+    </div>
+    <div class="hint" id="presetHint"></div>
+    <div class="actions"><button id="startCancel">취소</button><button class="primary" id="startGo">분석 시작</button></div>
+    <div class="error" id="startError" role="alert"></div>
+  </div>
+</div>
+
+<div class="sheet" id="menuSheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+  <div>
+    <h3 id="menuTitle">설정</h3>
+    <div class="sub" id="phoneName"></div>
+    <div class="actions"><button id="menuClose">닫기</button><button id="unpair" style="color:var(--bad)">연결 해제</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const API = 'https://ghgamrbcgbjtrixfkrmd.supabase.co';
+const KEY = 'sb_publishable_9G-AYuAeSvl-KtyKrS7SQQ_bAHWJudC';  // public application key
+const PRESETS = {light:'긴 무음만 줄입니다.', recommended:'PC에 저장된 정리 설정 그대로 분석합니다.', transcript:'아무것도 지우지 않고 받아쓰기만 합니다.'};
+const $ = id => document.getElementById(id);
+const store = {
+  get(){ try { return localStorage.getItem('podcut-remote-token'); } catch { return null; } },
+  set(v){ try { v ? localStorage.setItem('podcut-remote-token', v) : localStorage.removeItem('podcut-remote-token'); } catch {} },
+  pc(v){ try { if (v === undefined) return localStorage.getItem('podcut-remote-pc'); localStorage.setItem('podcut-remote-pc', v); } catch { return null; } },
+};
+let token = store.get(), view = null, chosen = null, timer = null, busy = false;
+
+const MESSAGES = {invalid_code:'코드가 맞지 않거나 만료됐습니다. PC에서 새 코드를 받으세요.', try_later:'잠시 뒤 다시 시도하세요.',
+  too_many_commands:'이 PC에 기다리는 분석이 많습니다. 끝난 뒤 다시 시도하세요.', unknown_device:'PC를 찾지 못했습니다.', invalid_command:'요청이 올바르지 않습니다.'};
+async function rpc(name, body){
+  let r;
+  try { r = await fetch(API + '/rest/v1/rpc/' + name, {method:'POST', headers:{apikey:KEY, 'Content-Type':'application/json'}, body:JSON.stringify(body), cache:'no-store'}); }
+  catch { throw new Error('인터넷 연결을 확인하세요.'); }
+  const text = await r.text();
+  if (!r.ok) {
+    let code = ''; try { code = JSON.parse(text).message || ''; } catch {}
+    if (code === 'pairing_required') { forget(); throw new Error('연결이 끊겼습니다. PC에서 다시 연결하세요.'); }
+    throw new Error(MESSAGES[code] || '서버 요청이 실패했습니다.');
+  }
+  return text ? JSON.parse(text) : null;
+}
+function forget(){ token = null; store.set(null); view = null; show(); }
+const ago = (iso, now) => {
+  const s = Math.max(0, (Date.parse(now || new Date().toISOString()) - Date.parse(iso)) / 1000);
+  return s < 60 ? '방금' : s < 3600 ? Math.floor(s / 60) + '분 전' : s < 86400 ? Math.floor(s / 3600) + '시간 전' : Math.floor(s / 86400) + '일 전';
+};
+const size = n => n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : Math.max(1, Math.round(n / 1e6)) + ' MB';
+const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } for (const k of kids) if (k != null) e.append(k); return e; };
+const bar = p => el('div', {class: 'bar' + (p == null || p < 0 ? ' wait' : '')}, el('i', p == null || p < 0 ? {} : {style: 'width:' + p + '%'}));
+
+function show(){
+  $('pairView').hidden = !!token; $('mainView').hidden = !token; $('menu').hidden = !token;
+  const ios = /iPhone|iPad/.test(navigator.userAgent) && !navigator.standalone;
+  $('iosHint').hidden = !ios;
+  if (!token) { clearTimeout(timer); return; }
+  refresh();
+}
+
+async function pair(code){
+  $('pairError').textContent = ''; $('pair').disabled = true;
+  try {
+    const ua = navigator.userAgent;
+    const name = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android 휴대폰' : '휴대폰';
+    const result = await rpc('ac_remote_claim', {code, phone_name:name});
+    token = result.token; store.set(token); show();
+  } catch (e) { $('pairError').textContent = e.message; }
+  finally { $('pair').disabled = false; }
+}
+
+async function refresh(){
+  clearTimeout(timer);
+  if (!token) return;
+  try { view = await rpc('ac_remote_view', {token}); $('mainError').textContent = ''; render(); }
+  catch (e) { if (token) $('mainError').textContent = e.message; }
+  if (token) timer = setTimeout(refresh, document.hidden ? 30000 : 3000);
+}
+
+function render(){
+  const devices = view.devices || [];
+  const pick = $('pcPick'); pick.hidden = devices.length < 2;
+  chosen = devices.find(d => d.id === (chosen && chosen.id)) || devices.find(d => d.id === store.pc()) || devices[0] || null;
+  pick.replaceChildren(...devices.map(d => { const o = el('option', {value: d.id}, d.name); if (chosen && d.id === chosen.id) o.selected = true; return o; }));
+  const online = chosen && (Date.parse(view.now) - Date.parse(chosen.seen_at)) < 90000;
+  $('pcDot').className = 'dot' + (online ? ' on' : '');
+  $('pcText').textContent = !chosen ? 'PC에서 PODcut을 켜고 로그인하면 여기에 나타납니다.' :
+    chosen.name + (online ? ' · 켜져 있음' : ' · 꺼져 있음 (' + ago(chosen.seen_at, view.now) + ' 확인)');
+  const state = (chosen && chosen.state) || {};
+
+  const jobs = (view.commands || []).filter(c => chosen && c.device === chosen.id).slice(0, 5);
+  $('jobsCard').hidden = !jobs.length;
+  $('jobs').replaceChildren(...jobs.map(c => {
+    const label = {queued:['기다리는 중', ''], running:['분석 중', 'run'], done:['완료', 'ok'], failed:['실패', 'bad'], cancelled:['취소됨', '']}[c.status];
+    const main = el('div', {class: 'main'}, el('div', {class: 'name'}, c.args.name || '새 프로젝트'),
+      el('div', {class: 'sub'}, c.message || (c.status === 'queued' ? (online ? 'PC가 곧 받습니다.' : 'PC가 켜지면 시작합니다.') : ago(c.updated_at, view.now))),
+      c.status === 'running' ? bar(c.progress) : null);
+    const row = el('div', {class: 'row'}, main, el('span', {class: 'pill ' + label[1]}, label[0]));
+    if (c.status === 'queued') row.append(el('button', {class: 'ghost', onclick: () => cancel(c.id)}, '취소'));
+    return row;
+  }));
+
+  const files = state.files || [];
+  $('files').replaceChildren(...(files.length ? files.map(f => el('div', {class: 'row'},
+      el('div', {class: 'main'}, el('div', {class: 'name'}, f.name), el('div', {class: 'sub'}, f.folder + ' · ' + size(f.size) + ' · ' + ago(new Date(f.modified * 1000).toISOString(), view.now))),
+      el('button', {onclick: () => openStart(f)}, '분석')))
+    : [el('div', {class: 'empty'}, chosen ? '최근 2주 안에 생긴 새 녹화 파일이 없습니다. 예전 프로젝트의 녹화 파일이 있던 폴더를 봅니다.' : '—')]));
+  if (!online) for (const b of $('files').querySelectorAll('button')) b.disabled = true;
+
+  const projects = state.projects || [];
+  $('projects').replaceChildren(...(projects.length ? projects.map(p => {
+    const running = p.status === '분석 중' || p.status === '마무리 중';
+    return el('div', {class: 'row'}, el('div', {class: 'main'}, el('div', {class: 'name'}, p.name),
+      el('div', {class: 'sub'}, [p.length, p.sharing, ago(p.updated, view.now)].filter(Boolean).join(' · ')),
+      running ? bar(p.progress) : null),
+      el('span', {class: 'pill' + (running ? ' run' : p.status === '분석 완료' ? ' ok' : '')}, p.status));
+  }) : [el('div', {class: 'empty'}, '프로젝트가 없습니다.')]));
+
+  const canPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  $('pushCard').hidden = !canPush;
+  $('push').textContent = view.phone.push ? '끄기' : '켜기';
+  $('pushText').textContent = view.phone.push ? '켜져 있습니다. 분석이 끝나면 알려 줍니다.' : '분석이 끝나면 이 휴대폰에 알려 줍니다.';
+  $('phoneName').textContent = view.phone.name + ' · 이 휴대폰을 연결 해제하면 다시 연결할 때 PC의 새 코드가 필요합니다.';
+}
+
+let startFile = null, preset = 'recommended';
+function openStart(f){
+  startFile = f; $('startFile').textContent = f.name + ' · ' + size(f.size);
+  $('startName').value = f.name.replace(/\.[^.]+$/, '').slice(0, 80); $('startError').textContent = '';
+  setPreset('recommended'); $('startSheet').classList.add('open');
+}
+function setPreset(p){ preset = p; for (const b of $('presets').children) b.setAttribute('aria-pressed', b.dataset.preset === p); $('presetHint').textContent = PRESETS[p]; }
+async function start(){
+  $('startGo').disabled = true; $('startError').textContent = '';
+  try {
+    await rpc('ac_remote_command', {token, device: chosen.id, kind: 'analyze_file', args: {file: startFile.id, name: $('startName').value.trim(), preset}});
+    $('startSheet').classList.remove('open'); refresh();
+  } catch (e) { $('startError').textContent = e.message; }
+  finally { $('startGo').disabled = false; }
+}
+async function cancel(id){ try { await rpc('ac_remote_cancel', {token, command: id}); refresh(); } catch (e) { $('mainError').textContent = e.message; } }
+
+function base64url(text){ const s = atob(text.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((text.length + 3) % 4)); return Uint8Array.from(s, c => c.charCodeAt(0)); }
+async function togglePush(){
+  $('push').disabled = true; $('mainError').textContent = '';
+  try {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    if (view.phone.push) {
+      const sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe();
+      await rpc('ac_remote_subscribe', {token, subscription: null});
+    } else {
+      if (await Notification.requestPermission() !== 'granted') throw new Error('알림이 허용되지 않았습니다. 휴대폰 설정에서 알림을 허용하세요.');
+      const r = await fetch(API + '/functions/v1/ac-remote-push', {headers: {apikey: KEY}});
+      const {key} = await r.json();
+      const sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: base64url(key)});
+      await rpc('ac_remote_subscribe', {token, subscription: sub.toJSON()});
+    }
+    await refresh();
+  } catch (e) { $('mainError').textContent = e.message || '알림을 켜지 못했습니다.'; }
+  finally { $('push').disabled = false; }
+}
+
+$('pair').onclick = () => pair($('code').value);
+$('code').onkeydown = e => { if (e.key === 'Enter') pair($('code').value); };
+$('pcPick').onchange = () => { store.pc($('pcPick').value); chosen = (view.devices || []).find(d => d.id === $('pcPick').value); render(); };
+for (const b of $('presets').children) b.onclick = () => setPreset(b.dataset.preset);
+$('startCancel').onclick = () => $('startSheet').classList.remove('open');
+$('startGo').onclick = start;
+$('push').onclick = togglePush;
+$('menu').onclick = () => $('menuSheet').classList.add('open');
+$('menuClose').onclick = () => $('menuSheet').classList.remove('open');
+$('unpair').onclick = async () => { try { await rpc('ac_remote_unpair', {token}); } catch {} $('menuSheet').classList.remove('open'); forget(); };
+for (const s of document.querySelectorAll('.sheet')) s.addEventListener('click', e => { if (e.target === s) s.classList.remove('open'); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && token) refresh(); });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+// A QR code opens …/#pair=CODE: pair right away (the code is used once), then drop it from the address.
+const fromLink = (location.hash.match(/pair=([A-Za-z0-9]{8})/) || [])[1];
+if (fromLink) { history.replaceState(null, '', location.pathname); if (token) show(); else { $('code').value = fromLink; show(); pair(fromLink); } }
+else show();
+</script>
+</body>
+</html>
