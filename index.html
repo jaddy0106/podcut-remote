@@ -66,7 +66,18 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .error{color:var(--bad);font-size:14px;margin:10px 2px;min-height:1em}
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:center;z-index:5}
 .sheet.open{display:flex}
-.sheet>div{background:var(--panel);width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.sheet>div{background:var(--panel);width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+button.icon{background:transparent;color:var(--accent-text);font-size:26px;line-height:1;padding:4px 10px;min-height:40px}
+.x{background:transparent;color:var(--text3);padding:6px 8px;min-height:32px;font-size:18px;line-height:1}
+.tabs{margin:14px 0 0}
+.tabs button .n{color:var(--text3);font-weight:400;margin-left:4px}
+.pickList{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:4px}
+.pickList .row{cursor:pointer}
+.pickList .row:first-child{border-top:0}
+.pickList .row[aria-checked=true]{background:var(--accent-soft)}
+.pickList .row[aria-checked=true] .name{color:var(--accent-text)}
+.check{width:20px;height:20px;border-radius:50%;border:2px solid var(--line-strong);flex:none}
+.row[aria-checked=true] .check{border:6px solid var(--accent)}
 .sheet h3{margin:0 0 4px;font-size:17px}
 .seg{display:flex;background:var(--raised);border-radius:10px;padding:3px;gap:3px;margin:8px 0 4px}
 .seg button{flex:1;background:transparent;min-height:36px;padding:6px}
@@ -79,7 +90,7 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 </head>
 <body>
 <main>
-  <header><img src="icon-192.png" alt=""><h1>PODcut 리모컨</h1><button class="ghost" id="menu" hidden>설정</button></header>
+  <header><img src="icon-192.png" alt=""><h1>PODcut 리모컨</h1><button class="icon" id="add" hidden aria-label="새 프로젝트">+</button><button class="ghost" id="menu" hidden>설정</button></header>
 
   <section id="pairView" hidden>
     <div class="card pair">
@@ -94,9 +105,12 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 
   <section id="mainView" hidden>
     <div class="status" id="pcLine"><span class="dot" id="pcDot"></span><span id="pcText">확인 중…</span><select id="pcPick" hidden aria-label="PC 고르기"></select></div>
-    <div class="card" id="jobsCard" hidden><h2>휴대폰에서 시작한 분석</h2><div id="jobs"></div></div>
-    <div class="card"><h2>새 녹화 파일</h2><div id="files"></div></div>
-    <div class="card"><h2>프로젝트</h2><div id="projects"></div></div>
+    <div class="card" id="jobsCard" hidden><h2>진행 상황</h2><div id="jobs"></div></div>
+    <div class="seg tabs" id="tabs" role="tablist">
+      <button data-tab="mine" role="tab" aria-pressed="true">내 프로젝트<span class="n" id="mineCount"></span></button>
+      <button data-tab="team" role="tab" aria-pressed="false">팀 프로젝트<span class="n" id="teamCount"></span></button>
+    </div>
+    <div class="card" style="margin-top:8px"><div id="projects"></div></div>
     <div class="card" id="pushCard" hidden>
       <div class="row"><div class="main"><div class="name">완료 알림</div><div class="sub" id="pushText">분석이 끝나면 이 휴대폰에 알려 줍니다.</div></div><button id="push">켜기</button></div>
     </div>
@@ -106,8 +120,10 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 
 <div class="sheet" id="startSheet" role="dialog" aria-modal="true" aria-labelledby="startTitle">
   <div>
-    <h3 id="startTitle">분석 시작</h3>
-    <div class="sub" id="startFile"></div>
+    <h3 id="startTitle">새 프로젝트</h3>
+    <div class="sub" id="startPc"></div>
+    <label>영상</label>
+    <div class="pickList" id="files" role="radiogroup" aria-label="영상"></div>
     <label for="startName">프로젝트 이름</label>
     <input id="startName" maxlength="80">
     <label>정리 방식</label>
@@ -167,7 +183,7 @@ const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag)
 const bar = p => el('div', {class: 'bar' + (p == null || p < 0 ? ' wait' : '')}, el('i', p == null || p < 0 ? {} : {style: 'width:' + p + '%'}));
 
 function show(){
-  $('pairView').hidden = !!token; $('mainView').hidden = !token; $('menu').hidden = !token;
+  $('pairView').hidden = !!token; $('mainView').hidden = !token; $('menu').hidden = !token; $('add').hidden = !token;
   const ios = /iPhone|iPad/.test(navigator.userAgent) && !navigator.standalone;
   $('iosHint').hidden = !ios;
   if (!token) { clearTimeout(timer); return; }
@@ -198,13 +214,13 @@ function render(){
   const pick = $('pcPick'); pick.hidden = devices.length < 2;
   chosen = devices.find(d => d.id === (chosen && chosen.id)) || devices.find(d => d.id === store.pc()) || devices[0] || null;
   pick.replaceChildren(...devices.map(d => { const o = el('option', {value: d.id}, d.name); if (chosen && d.id === chosen.id) o.selected = true; return o; }));
-  const online = chosen && (Date.parse(view.now) - Date.parse(chosen.seen_at)) < 90000;
+  online = !!(chosen && (Date.parse(view.now) - Date.parse(chosen.seen_at)) < 90000);
   $('pcDot').className = 'dot' + (online ? ' on' : '');
   $('pcText').textContent = !chosen ? 'PC에서 PODcut을 켜고 로그인하면 여기에 나타납니다.' :
     chosen.name + (online ? ' · 켜져 있음' : ' · 꺼져 있음 (' + ago(chosen.seen_at, view.now) + ' 확인)');
   const state = (chosen && chosen.state) || {};
 
-  const jobs = (view.commands || []).filter(c => chosen && c.device === chosen.id).slice(0, 5);
+  const jobs = (view.commands || []).filter(c => chosen && c.device === chosen.id).slice(0, 8);
   $('jobsCard').hidden = !jobs.length;
   $('jobs').replaceChildren(...jobs.map(c => {
     const label = {queued:['기다리는 중', ''], running:['분석 중', 'run'], done:['완료', 'ok'], failed:['실패', 'bad'], cancelled:['취소됨', '']}[c.status];
@@ -213,24 +229,27 @@ function render(){
       c.status === 'running' ? bar(c.progress) : null);
     const row = el('div', {class: 'row'}, main, el('span', {class: 'pill ' + label[1]}, label[0]));
     if (c.status === 'queued') row.append(el('button', {class: 'ghost', onclick: () => cancel(c.id)}, '취소'));
+    else if (c.status !== 'running') row.append(el('button', {class: 'x', 'aria-label': '목록에서 지우기', title: '지우기', onclick: () => dismiss(c.id)}, '×'));
     return row;
   }));
 
-  const files = state.files || [];
-  $('files').replaceChildren(...(files.length ? files.map(f => el('div', {class: 'row'},
-      el('div', {class: 'main'}, el('div', {class: 'name'}, f.name), el('div', {class: 'sub'}, f.folder + ' · ' + size(f.size) + ' · ' + ago(new Date(f.modified * 1000).toISOString(), view.now))),
-      el('button', {onclick: () => openStart(f)}, '분석')))
-    : [el('div', {class: 'empty'}, chosen ? '최근 2주 안에 생긴 새 녹화 파일이 없습니다. 예전 프로젝트의 녹화 파일이 있던 폴더를 봅니다.' : '—')]));
-  if (!online) for (const b of $('files').querySelectorAll('button')) b.disabled = true;
+  files = state.files || [];
+  $('add').disabled = !chosen;
+  if ($('startSheet').classList.contains('open')) renderFiles();
 
   const projects = state.projects || [];
-  $('projects').replaceChildren(...(projects.length ? projects.map(p => {
+  const team = p => !!p.sharing;
+  const counts = {mine: projects.filter(p => !team(p)).length, team: projects.filter(team).length};
+  $('mineCount').textContent = counts.mine; $('teamCount').textContent = counts.team;
+  for (const b of $('tabs').children) b.setAttribute('aria-pressed', b.dataset.tab === tab);
+  const shown = projects.filter(p => team(p) === (tab === 'team'));
+  $('projects').replaceChildren(...(shown.length ? shown.map(p => {
     const running = p.status === '분석 중' || p.status === '마무리 중';
     return el('div', {class: 'row'}, el('div', {class: 'main'}, el('div', {class: 'name'}, p.name),
-      el('div', {class: 'sub'}, [p.length, p.sharing, ago(p.updated, view.now)].filter(Boolean).join(' · ')),
+      el('div', {class: 'sub'}, [p.length, ago(p.updated, view.now)].filter(Boolean).join(' · ')),
       running ? bar(p.progress) : null),
       el('span', {class: 'pill' + (running ? ' run' : p.status === '분석 완료' ? ' ok' : '')}, p.status));
-  }) : [el('div', {class: 'empty'}, '프로젝트가 없습니다.')]));
+  }) : [el('div', {class: 'empty'}, tab === 'team' ? '팀과 공유한 프로젝트가 없습니다.' : chosen ? '프로젝트가 없습니다. 오른쪽 위 +로 새 프로젝트를 만드세요.' : '—')]));
 
   const canPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
   $('pushCard').hidden = !canPush;
@@ -239,11 +258,35 @@ function render(){
   $('phoneName').textContent = view.phone.name + ' · 이 휴대폰을 연결 해제하면 다시 연결할 때 PC의 새 코드가 필요합니다.';
 }
 
-let startFile = null, preset = 'recommended';
-function openStart(f){
-  startFile = f; $('startFile').textContent = f.name + ' · ' + size(f.size);
-  $('startName').value = f.name.replace(/\.[^.]+$/, '').slice(0, 80); $('startError').textContent = '';
-  setPreset('recommended'); $('startSheet').classList.add('open');
+let startFile = null, preset = 'recommended', files = [], online = false, tab = 'mine', named = false;
+try { tab = localStorage.getItem('podcut-remote-tab') === 'team' ? 'team' : 'mine'; } catch {}
+let filesKey = '';
+function renderFiles(){
+  if (startFile && !files.some(f => f.id === startFile.id)) startFile = null;
+  $('startPc').textContent = chosen ? chosen.name + (online ? '' : ' · 꺼져 있음: PC가 켜지면 시작합니다') : '';
+  $('startGo').disabled = !startFile || !chosen;
+  // Rebuilt only when something changed: a refresh every 3 s must not swallow a tap.
+  const key = JSON.stringify([files.map(f => [f.id, f.size, f.modified]), startFile && startFile.id, Math.floor(Date.parse(view.now) / 60000)]);
+  if (key === filesKey) return;
+  filesKey = key;
+  $('files').replaceChildren(...(files.length ? files.map(f => {
+    const row = el('div', {class: 'row', role: 'radio', tabindex: '0', 'aria-checked': String(!!startFile && startFile.id === f.id)},
+      el('span', {class: 'check'}),
+      el('div', {class: 'main'}, el('div', {class: 'name'}, f.name), el('div', {class: 'sub'}, f.folder + ' · ' + size(f.size) + ' · ' + ago(new Date(f.modified * 1000).toISOString(), view.now))));
+    const pick = () => choose(f);
+    row.addEventListener('click', pick); row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+    return row;
+  }) : [el('div', {class: 'empty'}, '최근 2주 안에 생긴 새 녹화 파일이 없습니다. 예전 프로젝트의 녹화 파일이 있던 폴더를 봅니다.')]));
+}
+function choose(f){
+  startFile = f;
+  if (!named) $('startName').value = f.name.replace(/\.[^.]+$/, '').slice(0, 80);
+  renderFiles();
+}
+function openStart(){
+  if (!chosen) return;
+  startFile = null; named = false; $('startName').value = ''; $('startError').textContent = '';
+  setPreset('recommended'); filesKey = ''; renderFiles(); $('startSheet').classList.add('open');
 }
 function setPreset(p){ preset = p; for (const b of $('presets').children) b.setAttribute('aria-pressed', b.dataset.preset === p); $('presetHint').textContent = PRESETS[p]; }
 async function start(){
@@ -254,6 +297,7 @@ async function start(){
   } catch (e) { $('startError').textContent = e.message; }
   finally { $('startGo').disabled = false; }
 }
+async function dismiss(id){ try { await rpc('ac_remote_dismiss', {token, command: id}); refresh(); } catch (e) { $('mainError').textContent = e.message; } }
 async function cancel(id){ try { await rpc('ac_remote_cancel', {token, command: id}); refresh(); } catch (e) { $('mainError').textContent = e.message; } }
 
 function base64url(text){ const s = atob(text.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((text.length + 3) % 4)); return Uint8Array.from(s, c => c.charCodeAt(0)); }
@@ -280,6 +324,9 @@ $('pair').onclick = () => pair($('code').value);
 $('code').onkeydown = e => { if (e.key === 'Enter') pair($('code').value); };
 $('pcPick').onchange = () => { store.pc($('pcPick').value); chosen = (view.devices || []).find(d => d.id === $('pcPick').value); render(); };
 for (const b of $('presets').children) b.onclick = () => setPreset(b.dataset.preset);
+$('add').onclick = openStart;
+$('startName').oninput = () => { named = $('startName').value.trim() !== ''; };
+for (const b of $('tabs').children) b.onclick = () => { tab = b.dataset.tab; try { localStorage.setItem('podcut-remote-tab', tab); } catch {} if (view) render(); };
 $('startCancel').onclick = () => $('startSheet').classList.remove('open');
 $('startGo').onclick = start;
 $('push').onclick = togglePush;
