@@ -87,6 +87,13 @@ button.icon{background:transparent;color:var(--accent-text);font-size:26px;line-
 label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 .actions{display:flex;gap:8px;margin-top:16px}
 .actions button{flex:1}
+#pcLine{cursor:pointer;padding:6px 2px}
+.pcMore{font-size:13px;color:var(--accent-text);white-space:nowrap}
+.pcRow{display:block;padding:12px 14px}
+.pcRow .top{display:flex;align-items:center;gap:10px}
+.pcRow .tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.pcRow .tools button{min-height:34px;padding:6px 10px;font-size:13.5px}
+.pcRow.on{background:var(--accent-soft)}
 .row.tap{cursor:pointer}
 .row.tap:active{background:var(--raised)}
 .chev{color:var(--text3);font-size:20px;line-height:1}
@@ -133,7 +140,7 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
   </section>
 
   <section id="mainView" hidden>
-    <div class="status" id="pcLine"><span class="dot" id="pcDot"></span><span id="pcText">확인 중…</span><select id="pcPick" hidden aria-label="PC 고르기"></select></div>
+    <div class="status" id="pcLine" role="button" tabindex="0" aria-label="PC 목록"><span class="dot" id="pcDot"></span><span id="pcText" style="flex:1">확인 중…</span><span class="pcMore">PC 목록 ›</span></div>
     <div class="card" id="jobsCard" hidden><h2>진행 상황</h2><div id="jobs"></div></div>
     <div class="seg tabs" id="tabs" role="tablist">
       <button data-tab="mine" role="tab" aria-pressed="true">내 프로젝트<span class="n" id="mineCount"></span></button>
@@ -184,6 +191,16 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
   </div>
 </div>
 
+<div class="sheet" id="pcSheet" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
+  <div>
+    <h3 id="pcTitle">PC 목록</h3>
+    <div class="sub" style="white-space:normal">이 계정에서 PODcut을 쓰는 PC입니다. 누르면 그 PC를 씁니다. 이름과 순서는 이 계정의 모든 휴대폰에 똑같이 보입니다.</div>
+    <div class="pickList" id="pcList" style="margin-top:12px"></div>
+    <div class="error" id="pcError" role="alert"></div>
+    <div class="actions"><button id="pcClose">닫기</button></div>
+  </div>
+</div>
+
 <div class="sheet" id="menuSheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
   <div>
     <h3 id="menuTitle">설정</h3>
@@ -206,7 +223,9 @@ const store = {
 let token = store.get(), view = null, chosen = null, timer = null, busy = false;
 
 const MESSAGES = {invalid_code:'코드가 맞지 않거나 만료됐습니다. PC에서 새 코드를 받으세요.', try_later:'잠시 뒤 다시 시도하세요.',
-  too_many_commands:'이 PC에 기다리는 분석이 많습니다. 끝난 뒤 다시 시도하세요.', unknown_device:'PC를 찾지 못했습니다.', invalid_command:'요청이 올바르지 않습니다.'};
+  too_many_commands:'이 PC에 기다리는 분석이 많습니다. 끝난 뒤 다시 시도하세요.', unknown_device:'PC를 찾지 못했습니다.', invalid_command:'요청이 올바르지 않습니다.',
+  too_many_edits:'PC가 아직 받지 않은 편집이 많습니다. 잠시 뒤 다시 고치세요.', update_pending:'이 PC는 이미 업데이트를 기다리고 있습니다.',
+  device_online:'켜져 있는 PC는 목록에서 뺄 수 없습니다. PC에서 PODcut을 끈 뒤 다시 시도하세요.', invalid_device:'PC 이름은 40자까지입니다.'};
 async function rpc(name, body){
   let r;
   try { r = await fetch(API + '/rest/v1/rpc/' + name, {method:'POST', headers:{apikey:KEY, 'Content-Type':'application/json'}, body:JSON.stringify(body), cache:'no-store'}); }
@@ -257,13 +276,12 @@ async function refresh(){
 
 function render(){
   const devices = view.devices || [];
-  const pick = $('pcPick'); pick.hidden = devices.length < 2;
   chosen = devices.find(d => d.id === (chosen && chosen.id)) || devices.find(d => d.id === store.pc()) || devices[0] || null;
-  pick.replaceChildren(...devices.map(d => { const o = el('option', {value: d.id}, d.name); if (chosen && d.id === chosen.id) o.selected = true; return o; }));
-  online = !!(chosen && (Date.parse(view.now) - Date.parse(chosen.seen_at)) < 90000);
+  online = !!(chosen && isOn(chosen));
   $('pcDot').className = 'dot' + (online ? ' on' : '');
   $('pcText').textContent = !chosen ? 'PC에서 PODcut을 켜고 로그인하면 여기에 나타납니다.' :
-    chosen.name + (online ? ' · 켜져 있음' : ' · 꺼져 있음 (' + ago(chosen.seen_at, view.now) + ' 확인)');
+    pcName(chosen) + (online ? ' · 켜져 있음' : ' · 꺼져 있음 (' + ago(chosen.seen_at, view.now) + ' 확인)');
+  if ($('pcSheet').classList.contains('open')) renderPcs();
   const state = (chosen && chosen.state) || {};
 
   const jobs = (view.commands || []).filter(c => chosen && c.device === chosen.id).slice(0, 8);
@@ -312,7 +330,7 @@ try { tab = localStorage.getItem('podcut-remote-tab') === 'team' ? 'team' : 'min
 let filesKey = '';
 function renderFiles(){
   if (startFile && !files.some(f => f.id === startFile.id)) startFile = null;
-  $('startPc').textContent = chosen ? chosen.name + (online ? '' : ' · 꺼져 있음: PC가 켜지면 시작합니다') : '';
+  $('startPc').textContent = chosen ? pcName(chosen) + (online ? '' : ' · 꺼져 있음: PC가 켜지면 시작합니다') : '';
   $('startGo').disabled = !startFile || !chosen;
   // Rebuilt only when something changed: a refresh every 3 s must not swallow a tap.
   const key = JSON.stringify([files.map(f => [f.id, f.size, f.modified]), startFile && startFile.id, Math.floor(Date.parse(view.now) / 60000)]);
@@ -370,6 +388,62 @@ async function togglePush(){
 }
 
 
+
+// ── PCs: names, order, updates (migration remote_devices_update) ──
+const pcName = d => d.label || d.name;
+const isOn = d => (Date.parse(view.now) - Date.parse(d.seen_at)) < 90000;
+let pcKey = '';
+function openPcs(){ if (!view) return; $('pcError').textContent = ''; pcKey = ''; renderPcs(); $('pcSheet').classList.add('open'); }
+function pcUpdate(d){ return (view.edits || []).find(e => e.kind === 'update_app' && e.device === d.id); }
+function renderPcs(){
+  const devices = view.devices || [];
+  // Rebuilt only when something shown changed: a refresh every 3 s must not swallow a tap.
+  const key = JSON.stringify(devices.map(d => [d.id, pcName(d), d.name, isOn(d), (d.state || {}).version, chosen && chosen.id, pcUpdate(d) && [pcUpdate(d).status, pcUpdate(d).message], Math.floor(Date.parse(view.now) / 60000)]));
+  if (key === pcKey) return;
+  pcKey = key;
+  $('pcList').replaceChildren(...(devices.length ? devices.map((d, i) => {
+    const on = isOn(d), version = (d.state || {}).version, update = pcUpdate(d);
+    const waiting = update && (update.status === 'queued' || update.status === 'running');
+    const sub = [d.label ? d.name : null, version ? 'PODcut ' + version : null, on ? '켜져 있음' : '꺼져 있음 · ' + ago(d.seen_at, view.now) + ' 확인'].filter(Boolean).join(' · ');
+    const status = update ? el('div', {class: 'sub', style: 'white-space:normal;margin-top:4px;color:' + (update.status === 'failed' ? 'var(--bad)' : 'var(--text2)')},
+      '업데이트 · ' + (update.message || (update.status === 'queued' ? (on ? 'PC가 곧 받습니다.' : 'PC가 켜지면 받습니다.') : ''))) : null;
+    const tools = el('div', {class: 'tools'},
+      el('button', {onclick: e => { e.stopPropagation(); renamePc(d); }}, '이름'),
+      el('button', {'aria-label': '위로', onclick: e => { e.stopPropagation(); movePc(i, -1); }, ...(i === 0 ? {disabled: ''} : {})}, '▲'),
+      el('button', {'aria-label': '아래로', onclick: e => { e.stopPropagation(); movePc(i, 1); }, ...(i === devices.length - 1 ? {disabled: ''} : {})}, '▼'),
+      el('button', {onclick: e => { e.stopPropagation(); updatePc(d); }, ...(waiting ? {disabled: ''} : {})}, waiting ? '업데이트 중…' : 'PC 앱 업데이트'),
+      on ? null : el('button', {style: 'color:var(--bad)', onclick: e => { e.stopPropagation(); forgetPc(d); }}, '목록에서 빼기'));
+    return el('div', {class: 'row pcRow' + (chosen && chosen.id === d.id ? ' on' : ''), role: 'radio', tabindex: '0', 'aria-checked': String(!!chosen && chosen.id === d.id), onclick: () => pickPc(d)},
+      el('div', {class: 'top'}, el('span', {class: 'dot' + (on ? ' on' : '')}), el('div', {class: 'main'}, el('div', {class: 'name'}, pcName(d)), el('div', {class: 'sub'}, sub))),
+      status, tools);
+  }) : [el('div', {class: 'empty'}, 'PC에서 PODcut을 켜고 로그인하면 여기에 나타납니다.')]));
+}
+function pickPc(d){ store.pc(d.id); chosen = d; pcKey = ''; render(); $('pcSheet').classList.remove('open'); }
+async function pcCall(name, body){ $('pcError').textContent = ''; try { await rpc(name, body); pcKey = ''; await refresh(); return true; } catch (e) { $('pcError').textContent = e.message; return false; } }
+async function renamePc(d){
+  const label = prompt('이 PC의 이름 (비우면 컴퓨터 이름: ' + d.name + ')', d.label || '');
+  if (label === null) return;
+  const place = (view.devices || []).findIndex(x => x.id === d.id);
+  await pcCall('ac_remote_device', {token, device: d.id, label: label.trim().slice(0, 40), place});
+}
+async function movePc(i, step){
+  const devices = (view.devices || []).slice(), j = i + step;
+  if (j < 0 || j >= devices.length) return;
+  [devices[i], devices[j]] = [devices[j], devices[i]];
+  $('pcError').textContent = '';
+  try { for (const [place, d] of devices.entries()) await rpc('ac_remote_device', {token, device: d.id, label: d.label || '', place}); }
+  catch (e) { $('pcError').textContent = e.message; }
+  pcKey = ''; await refresh();
+}
+async function updatePc(d){
+  if (!confirm(pcName(d) + '의 PODcut을 업데이트할까요?\nPC 화면에 먼저 묻고, 2분 동안 답이 없으면 작업을 저장한 뒤 업데이트하고 다시 켭니다.')) return;
+  await pcCall('ac_remote_command', {token, device: d.id, kind: 'update_app', args: {}});
+}
+async function forgetPc(d){
+  if (!confirm(pcName(d) + '을(를) 목록에서 뺄까요?\n그 PC에서 PODcut을 다시 켜고 로그인하면 다시 나타납니다.')) return;
+  if (await pcCall('ac_remote_forget', {token, device: d.id}) && chosen && chosen.id === d.id) { chosen = null; render(); }
+}
+
 // ── 대사 편집 (remote_cues.py on the PC): line breaks and misheard words ──
 // The PC lays the project's subtitle cards out and puts them on the server; this
 // page reads them, previews a card as the video shows it and sends one card's
@@ -381,15 +455,32 @@ async function openCues(p){
   cue = {project: p.pid, name: p.name, device: chosen.id, doc: null, stamp: null, asked: null, chosen: null, pending: {}, failed: {}, note: ''};
   $('cueTitle').textContent = p.name; $('cueList').replaceChildren(); $('editBox').hidden = true; $('cueView').hidden = false;
   history.pushState({cue: true}, '');
-  cueNote(online ? 'PC에서 자막을 불러오는 중…' : 'PC가 꺼져 있습니다. 마지막으로 받은 자막을 보여 줍니다.');
+  cueNote(online ? 'PC에서 자막을 불러오는 중… 이 화면을 여는 동안 PC는 원격 접속 중으로 잠깁니다.' : 'PC가 꺼져 있습니다. 마지막으로 받은 자막을 보여 줍니다.');
   await cueFetch();
   if (online) {
     try { cue.asked = await rpc('ac_remote_command', {token, device: cue.device, kind: 'open_cues', args: {project: cue.project}}); }
     catch (e) { cueNote(e.message, true); }
+    beat(true);
   }
   drawFrame();
 }
-function closeCues(){ cue = null; $('cueView').hidden = true; $('editBox').hidden = true; }
+// While this screen is open the PC shows '원격 접속 중입니다' and takes no input:
+// a heartbeat every 10 s holds it (it lets go 45 s after the last one).
+async function beat(start){
+  const c = cue; if (!c) return;
+  c.beat = Date.now();
+  try {
+    const r = await rpc('ac_remote_presence', {token, device: c.device, project: c.project, start: !!start});
+    if (c !== cue || !r || !r.released) return;
+    if (r.reason === 'lapsed') return beat(true);   // the page was hidden a while: hold it again
+    closeCues(false);
+    $('mainError').textContent = r.reason === 'pc' ? 'PC에서 원격 편집을 끝냈습니다. 다시 고치려면 프로젝트를 다시 여세요.' : '다른 휴대폰이 이 PC에서 편집을 시작해 이 화면을 닫았습니다.';
+  } catch (e) { /* offline a moment: the next refresh beats again */ }
+}
+function closeCues(leave = true){
+  const c = cue; cue = null; $('cueView').hidden = true; $('editBox').hidden = true;
+  if (leave && c) rpc('ac_remote_presence', {token, device: c.device, project: null}).catch(() => {});   // the PC unlocks
+}
 function cueNote(text, bad){ if (!cue) return; cue.note = text; $('cueNote').textContent = text; $('cueNote').className = 'cueNote' + (bad ? ' bad' : ''); }
 async function cueFetch(){
   const c = cue; if (!c) return;
@@ -400,6 +491,7 @@ async function cueFetch(){
 }
 async function cueRefresh(){
   const c = cue; if (!c) return;
+  if (online && Date.now() - (c.beat || 0) > 10000) beat(false);
   const edits = (view.edits || []).filter(e => e.device === c.device && e.project === c.project);
   const asked = edits.find(e => e.id === c.asked);
   if (asked && asked.status === 'failed') { cueNote(asked.message || 'PC에서 자막을 불러오지 못했습니다.', true); c.asked = null; }
@@ -415,7 +507,7 @@ async function cueRefresh(){
   try { await cueFetch(); } catch (e) { cueNote(e.message, true); }
   if (changed) renderCues();
   if (!online && c.doc) cueNote('PC가 꺼져 있어 고칠 수 없습니다. PC에서 PODcut을 켜면 다시 고칠 수 있습니다.', true);
-  else if (c.doc && c.note.startsWith('PC에서 자막을 불러오는')) cueNote((c.doc.shared ? '팀 프로젝트: 고칠 때마다 PC가 그 챕터를 잠깐 맡아 저장합니다. ' : '') + '자막을 눌러 고치세요. 줄바꿈은 Enter, 두 줄까지. PC에서 열려 있으면 그 화면에 바로 들어갑니다.');
+  else if (c.doc && c.note.startsWith('PC에서 자막을 불러오는')) cueNote((c.doc.shared ? '팀 프로젝트: 고칠 때마다 PC가 그 챕터를 잠깐 맡아 저장합니다. ' : '') + '자막을 눌러 고치세요. 줄바꿈은 Enter, 두 줄까지. 이 화면을 여는 동안 PC는 원격 접속 중으로 잠기고, 나가면 풀립니다.');
 }
 function renderCues(){
   const c = cue; if (!c || !c.doc) return;
@@ -514,6 +606,11 @@ function drawFrame(editing){
 }
 $('cueBack').onclick = () => { if (history.state && history.state.cue) history.back(); else closeCues(); };
 window.addEventListener('popstate', () => { if (cue) closeCues(); });
+window.addEventListener('pagehide', () => {   // the page closed: the PC unlocks now rather than in 45 s
+  if (!cue) return;
+  fetch(API + '/rest/v1/rpc/ac_remote_presence', {method: 'POST', keepalive: true, headers: {apikey: KEY, 'Content-Type': 'application/json'},
+    body: JSON.stringify({token, device: cue.device, project: null})}).catch(() => {});
+});
 $('cueText').oninput = cueInput;
 $('cueCancel').onclick = () => { if (cue) cue.chosen = null; $('editBox').hidden = true; renderCues(); };
 $('cueSave').onclick = saveCue;
@@ -522,7 +619,9 @@ fontReady.then(() => { if (cue) { drawFrame(); if (cue.chosen) cueInput(); } });
 
 $('pair').onclick = () => pair($('code').value);
 $('code').onkeydown = e => { if (e.key === 'Enter') pair($('code').value); };
-$('pcPick').onchange = () => { store.pc($('pcPick').value); chosen = (view.devices || []).find(d => d.id === $('pcPick').value); render(); };
+$('pcLine').onclick = openPcs;
+$('pcLine').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPcs(); } };
+$('pcClose').onclick = () => $('pcSheet').classList.remove('open');
 for (const b of $('presets').children) b.onclick = () => setPreset(b.dataset.preset);
 $('add').onclick = openStart;
 $('startName').oninput = () => { named = $('startName').value.trim() !== ''; };
