@@ -130,6 +130,21 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 .toolFoot{display:flex;align-items:center;gap:8px;margin-top:6px}
 .toolFoot .hint{flex:1;margin:0;font-size:12.5px}
 .toolFoot button{min-height:38px;padding:6px 14px;font-size:13.5px}
+/* Editing a card: the keyboard leaves about half the screen, and on iPhone its
+   floating bar (^ v ✓) covers the bottom of what is left. So the preview gets
+   small, the note one line, the buttons one row above the list (not at the
+   bottom, under that bar), and the card being edited goes to the list's top. */
+#cueView.editing .cueHead{padding-bottom:2px}
+#cueView.editing .frame{width:auto;height:calc(var(--vis, 100vh) * .2);max-width:100%;margin:0 auto}
+#cueView.editing .cueNote{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:3px 2px 2px}
+#cueView.editing .editBox{order:1;border-top:0;border-bottom:1px solid var(--line);padding:4px 10px 6px}
+#cueView.editing .cueList{order:2;padding-bottom:calc(var(--vis, 100vh) * .6)}
+#cueView.editing .tools{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#cueView.editing .tools::-webkit-scrollbar{display:none}
+#cueView.editing .tools button{flex:none;min-height:36px;padding:6px 11px;white-space:nowrap}
+#cueView.editing .tools.two button{flex:1}
+#cueView.editing .toolFoot{margin-top:4px}
+#cueView.editing .toolFoot button{min-height:34px}
 .meter{display:flex;gap:8px;font-size:12px;color:var(--text3);margin:4px 0 0;flex-wrap:wrap}
 .meter .over{color:var(--bad);font-weight:600}
 button.me{background:transparent;padding:0;min-height:0;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center}
@@ -561,7 +576,7 @@ const clock = ms => { const s = Math.floor(ms / 1000); return s >= 3600 ? Math.f
 async function openCues(p){
   if (!chosen) return;
   cue = {project: p.pid, name: p.name, device: chosen.id, doc: null, stamp: null, asked: null, chosen: null, edit: null, open: new Set(), pending: {}, failed: {}, note: ''};
-  $('cueTitle').textContent = p.name; $('cueList').replaceChildren(); $('editBox').hidden = true; $('cueView').hidden = false;
+  $('cueTitle').textContent = p.name; $('cueList').replaceChildren(); $('editBox').hidden = true; $('cueView').classList.remove('editing'); $('cueView').hidden = false;
   history.pushState({cue: true}, '');
   cueNote(online ? 'PC에서 자막을 불러오는 중… 이 화면을 여는 동안 PC는 원격 접속 중으로 잠깁니다.' : 'PC가 꺼져 있습니다. 마지막으로 받은 자막을 보여 줍니다.');
   await cueFetch();
@@ -589,7 +604,7 @@ function closeCues(leave = true){
   if (!player.paused) player.pause();
   listening = null;
   if (cue && cue.edit) commitCue() || (cue.edit = null);   // leaving: a change that can be saved is
-  const c = cue; cue = null; $('cueView').hidden = true; $('editBox').hidden = true;
+  const c = cue; cue = null; $('cueView').hidden = true; $('editBox').hidden = true; $('cueView').classList.remove('editing');
   if (leave && c) rpc('ac_remote_presence', {token, device: c.device, project: null}).catch(() => {});   // the PC unlocks
 }
 function cueNote(text, bad){ if (!cue) return; cue.note = text; $('cueNote').textContent = text; $('cueNote').className = 'cueNote' + (bad ? ' bad' : ''); }
@@ -682,11 +697,12 @@ function chooseCue(id, event){
   item.classList.add('on', 'editing');
   c.chosen = id; c.edit = {item, ta, meter, base: ta.value};
   ta.addEventListener('input', () => { c.scrollAt = $('cueList').scrollTop; cueInput(); });
-  $('editBox').hidden = false;
+  $('editBox').hidden = false; $('cueView').classList.add('editing');
   c.guard = Date.now() + 900; c.scrollAt = $('cueList').scrollTop;   // the keyboard coming up scrolls by itself
   ta.focus();
   const at = caret == null ? ta.value.length : caret;
   ta.setSelectionRange(at, at);
+  reveal(); setTimeout(reveal, 350); setTimeout(reveal, 700);   // again once the keyboard is up
   if (c.failed[id]) cueNote(c.failed[id], true);
   if (!player.paused) player.pause();
   setListen(listening && listening.card === id ? '준비 중…' : '▶ 듣기', !!listening && listening.card === id);
@@ -765,9 +781,20 @@ function commitCue(){
 function letGo(){
   const c = cue; if (!c) return;
   if (c.edit && document.activeElement === c.edit.ta) c.edit.ta.blur();
-  c.chosen = null; c.edit = null; $('editBox').hidden = true;
+  c.chosen = null; c.edit = null; $('editBox').hidden = true; $('cueView').classList.remove('editing');
   if (!player.paused) player.pause();
   renderCues();
+}
+// The card being edited at the top of the list, where the keyboard and its bar
+// cannot cover it. The list's own scroll here does not let the card go.
+function reveal(){
+  const c = cue; if (!c || !c.edit) return;
+  const list = $('cueList'), item = c.edit.item;
+  const top = item.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop - 6;
+  c.guard = Math.max(c.guard || 0, Date.now() + 600);
+  if (Math.abs(list.scrollTop - top) > 2) list.scrollTop = top;
+  c.scrollAt = list.scrollTop;
+  drawFrame(typed());
 }
 async function send(card, args, lines, told){
   const c = cue, local = 'local' + Math.random();
@@ -791,7 +818,7 @@ function arrange(op){
 // The card that is being edited changed on the PC meanwhile.
 function editedChanged(){
   const c = cue, card = cueCard(c.chosen);
-  if (!card) { cueNote('PC에서 이 자막이 바뀌었습니다. 다시 골라 고치세요.', true); c.edit = null; c.chosen = null; $('editBox').hidden = true; return renderCues(); }
+  if (!card) { cueNote('PC에서 이 자막이 바뀌었습니다. 다시 골라 고치세요.', true); c.edit = null; c.chosen = null; $('editBox').hidden = true; $('cueView').classList.remove('editing'); return renderCues(); }
   if (card.lines.join('\n') === c.edit.base) return;
   if (dirty()) return cueNote('PC에서 이 자막이 바뀌었습니다. 저장하면 실패하니 ‘되돌리기’를 누르세요.', true);
   c.edit.base = c.edit.ta.value = card.lines.join('\n'); cueInput();
@@ -861,8 +888,10 @@ $('cueList').addEventListener('scroll', () => {
 function fitView(){
   const v = window.visualViewport, s = $('cueView').style; if (!v) return;
   s.top = v.offsetTop + 'px'; s.height = v.height + 'px'; s.bottom = 'auto';
-  if (cue && cue.edit) { cue.guard = Math.max(cue.guard || 0, Date.now() + 600); }
+  s.setProperty('--vis', v.height + 'px');
+  if (cue && cue.edit) { cue.guard = Math.max(cue.guard || 0, Date.now() + 600); reveal(); }
 }
+fitView();
 if (window.visualViewport) { visualViewport.addEventListener('resize', fitView); visualViewport.addEventListener('scroll', fitView); }
 window.addEventListener('resize', () => drawFrame());
 fontReady.then(() => { if (cue) { drawFrame(); if (cue.edit) cueInput(); } });
