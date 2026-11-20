@@ -121,12 +121,20 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 .editBox textarea:focus{outline:2px solid var(--accent);border-color:transparent}
 .meter{display:flex;gap:8px;font-size:12px;color:var(--text3);margin:4px 2px 0;flex-wrap:wrap}
 .meter .over{color:var(--bad);font-weight:600}
+button.me{background:transparent;padding:0;min-height:0;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.face{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;overflow:hidden;flex:none;
+  background:var(--accent-soft);color:var(--accent-text);font-weight:600;font-size:15px;box-shadow:0 0 0 1px var(--line)}
+.face img{width:100%;height:100%;object-fit:cover;display:block}
+.face.big{width:56px;height:56px;font-size:24px}
+.account{display:flex;align-items:center;gap:14px}
+.account .name{font-size:17px}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 [hidden]{display:none!important}
 </style>
 </head>
 <body>
 <main>
-  <header><img src="icon-192.png" alt=""><h1>PODcut 리모컨</h1><button class="icon" id="add" hidden aria-label="새 프로젝트">+</button><button class="ghost" id="menu" hidden>설정</button></header>
+  <header><img src="icon-192.png" alt=""><h1>PODcut 리모컨</h1><button class="icon" id="add" hidden aria-label="새 프로젝트">+</button><button class="me" id="menu" hidden aria-label="계정"><span class="face" id="meFace"></span></button></header>
 
   <section id="pairView" hidden>
     <div class="card pair">
@@ -203,8 +211,16 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 
 <div class="sheet" id="menuSheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
   <div>
-    <h3 id="menuTitle">설정</h3>
-    <div class="sub" id="phoneName"></div>
+    <h3 id="menuTitle" class="visually-hidden">계정</h3>
+    <div class="account">
+      <span class="face big" id="accFace"></span>
+      <div class="main"><div class="name" id="accName"></div><div class="sub" id="accEmail"></div></div>
+    </div>
+    <div class="card" style="margin:14px 0 0">
+      <div class="row"><div class="main"><div class="sub">이 휴대폰</div><div class="name" id="phoneName"></div></div></div>
+      <div class="row"><div class="main"><div class="sub">연결한 날</div><div class="name" id="phoneSince"></div></div></div>
+    </div>
+    <div class="hint" style="white-space:normal">이 계정으로 로그인한 PC만 보입니다. 연결을 해제하면 이 휴대폰에서 이 계정이 빠지고, 다시 쓰려면 PC의 <b>공유 → 휴대폰 리모컨…</b>에서 새 코드를 받아 연결합니다.</div>
     <div class="actions"><button id="menuClose">닫기</button><button id="unpair" style="color:var(--bad)">연결 해제</button></div>
   </div>
 </div>
@@ -322,7 +338,7 @@ function render(){
   $('pushCard').hidden = !canPush;
   $('push').textContent = view.phone.push ? '끄기' : '켜기';
   $('pushText').textContent = view.phone.push ? '켜져 있습니다. 분석이 끝나면 알려 줍니다.' : '분석이 끝나면 이 휴대폰에 알려 줍니다.';
-  $('phoneName').textContent = view.phone.name + ' · 이 휴대폰을 연결 해제하면 다시 연결할 때 PC의 새 코드가 필요합니다.';
+  showAccount();
 }
 
 let startFile = null, preset = 'recommended', files = [], online = false, tab = 'mine', named = false;
@@ -388,6 +404,29 @@ async function togglePush(){
 }
 
 
+
+
+// ── the paired account: its Google picture at the top; a tap shows it and 연결 해제 ──
+function face(el, account){
+  const a = account || {}, letter = ((a.name || a.email || '?').trim()[0] || '?').toUpperCase();
+  const key = (a.avatar || '') + '|' + letter;
+  if (el.dataset.key === key) return;
+  el.dataset.key = key;
+  el.replaceChildren(letter);
+  if (a.avatar) {
+    const img = new Image(); img.alt = ''; img.referrerPolicy = 'no-referrer';
+    img.onload = () => el.replaceChildren(img); img.src = a.avatar;   // a picture that does not load leaves the letter
+  }
+}
+function showAccount(){
+  const a = view.account || {};
+  face($('meFace'), a); face($('accFace'), a);
+  $('menu').setAttribute('aria-label', '계정: ' + (a.email || a.name || ''));
+  $('accName').textContent = a.name || a.email || '연결된 계정';
+  $('accEmail').textContent = a.name && a.email ? a.email : (a.email ? '' : 'PC에서 Google로 로그인한 계정입니다.');
+  $('phoneName').textContent = view.phone.name;
+  $('phoneSince').textContent = view.phone.since ? new Date(view.phone.since).toLocaleDateString('ko-KR', {year: 'numeric', month: 'long', day: 'numeric'}) : '—';
+}
 
 // ── PCs: names, order, updates (migration remote_devices_update) ──
 const pcName = d => d.label || d.name;
@@ -688,7 +727,10 @@ $('startGo').onclick = start;
 $('push').onclick = togglePush;
 $('menu').onclick = () => $('menuSheet').classList.add('open');
 $('menuClose').onclick = () => $('menuSheet').classList.remove('open');
-$('unpair').onclick = async () => { try { await rpc('ac_remote_unpair', {token}); } catch {} $('menuSheet').classList.remove('open'); forget(); };
+$('unpair').onclick = async () => {
+  if (!confirm('이 휴대폰의 연결을 해제할까요?\n다시 쓰려면 PC에서 새 코드를 받아 연결해야 합니다.')) return;
+  try { await rpc('ac_remote_unpair', {token}); } catch {} $('menuSheet').classList.remove('open'); forget();
+};
 for (const s of document.querySelectorAll('.sheet')) s.addEventListener('click', e => { if (e.target === s) s.classList.remove('open'); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && token) refresh(); });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
