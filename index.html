@@ -136,9 +136,9 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 .chip.edit{background:var(--panel);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);cursor:text}
 .cue.cutBefore{box-shadow:0 -3px 0 0 var(--accent)}
 .cue.cutAfter{box-shadow:0 3px 0 0 var(--accent)}
-.lifted{position:fixed;z-index:20;pointer-events:none;left:0;top:0;padding:6px 11px;border-radius:9px;background:var(--accent);color:#fff;font-size:15px;
+.lifted{position:fixed;z-index:20;pointer-events:none;left:0;top:0;will-change:transform;padding:6px 11px;border-radius:9px;background:var(--accent);color:#fff;font-size:15px;
   font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.28);white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis}
-.dropHint{position:fixed;z-index:20;pointer-events:none;left:0;top:0;font-size:12.5px;padding:3px 9px;border-radius:99px;background:var(--text);color:var(--window);white-space:nowrap}
+.dropHint{position:fixed;z-index:20;pointer-events:none;left:0;top:0;will-change:transform;font-size:12.5px;padding:3px 9px;border-radius:99px;background:var(--text);color:var(--window);white-space:nowrap}
 .dropHint.bad{background:var(--bad);color:#fff}
 #cueView.editing .cueList{order:2;padding-bottom:calc(var(--vis, 100vh) * .6)}
 #cueView.editing .tools{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -616,6 +616,7 @@ function readPlace(device, project){
 }
 function keepPlace(){
   const c = cue; if (!c || !c.doc || c.restore) return;
+  if (c.drag) { clearTimeout(placeTimer); placeTimer = setTimeout(keepPlace, 400); return; }   // not while a word is dragged
   const list = $('cueList'), top = list.getBoundingClientRect().top;
   const first = [...list.querySelectorAll('.cueWrap')].find(w => w.getBoundingClientRect().bottom > top + 4);
   const place = {open: [...c.open], card: c.chosen, anchor: first ? first.querySelector('.cue').dataset.card : null,
@@ -745,7 +746,7 @@ function cueCard(id){ return cue && cue.doc ? cue.doc.cards.find(c => c.id === i
 // A tap picks the card the preview shows.
 function pickCue(id){
   const c = cue; if (!c || c.chosen === id) return;
-  c.chosen = id; keepPlace();
+  c.chosen = id; clearTimeout(placeTimer); placeTimer = setTimeout(keepPlace, 400);
   for (const e of $('cueList').querySelectorAll('.cue')) e.classList.toggle('on', e.dataset.card === id);
   if (c.failed[id]) cueNote(c.failed[id], true);
   drawFrame();
@@ -814,21 +815,26 @@ function lift(x, y){
     room = el('div', {class: 'line room'}, '여기로 내리면 두 줄');
     item.querySelector('.text').append(room);
   }
-  c.drag = {card, item, words, row, k, i, lifted, hint, room, pointer, action: null};
+  // Where the card and its second line are, measured once (moving the finger
+  // must not measure the page: on a phone that is what makes a drag stutter).
+  const list = $('cueList'), box = item.getBoundingClientRect(), lines = item.querySelectorAll('.line');
+  const geo = {top: box.top, bottom: box.bottom, second: lines[1] ? lines[1].getBoundingClientRect().top : null, scroll: list.scrollTop,
+               listTop: list.getBoundingClientRect().top, listBottom: list.getBoundingClientRect().bottom};
+  c.drag = {card, item, words, row, k, i, lifted, hint, room, pointer, geo, list, action: null, key: '', at: null, frame: 0};
+  list.style.overflowY = 'hidden';   // the finger moves the word, not the list (the edges still scroll it)
   if (navigator.vibrate) navigator.vibrate(8);
   aim(x, y);
 }
 // What dropping here would do: {kind, lines | at, text}.
 function intent(x, y){
-  const d = cue.drag, box = d.item.getBoundingClientRect();
-  const all = d.words.flat(), n = all.length;
+  const d = cue.drag, shift = d.geo.scroll - d.list.scrollTop;   // the list scrolled since: everything moved with it
+  const box = {top: d.geo.top + shift, bottom: d.geo.bottom + shift};
+  const all = d.words.flat();
   if (y < box.top - 10 || y > box.bottom + 10) {
     if (d.i === 0) return {kind: 'none', text: '첫 어절에서는 나눌 수 없어요'};
     return {kind: 'split', at: d.i, moved: all.slice(d.i), below: y > box.bottom, text: '여기서부터 새 자막'};
   }
-  const lines = [...d.item.querySelectorAll('.line')];
-  const second = lines[1];
-  const target = second && y >= second.getBoundingClientRect().top - 3 ? 1 : 0;
+  const target = d.geo.second !== null && y >= d.geo.second + shift - 3 ? 1 : 0;
   if (target === d.row) return {kind: 'none', text: d.words.length === 1 ? '아래 칸으로 내리면 두 줄' : '다른 줄로 옮겨 보세요'};
   if (target === 1) {   // a first-line word down: the second line starts at it
     const first = d.words[0].slice(0, d.k), rest = d.words[0].slice(d.k).concat(d.words[1] || []);
@@ -837,41 +843,56 @@ function intent(x, y){
   }
   return {kind: 'lines', lines: [all.join(' ')], moved: d.words[1], row: 0, text: '한 줄로 합치기'};   // a second-line word up
 }
+// The finger's moves, at most once a frame: the lifted word follows it (only a
+// transform), and the card and the preview change only when what a drop would
+// do changes.
 function aim(x, y){
-  const d = cue.drag; if (!d) return;
-  const a = d.action = intent(x, y);
+  const d = cue && cue.drag; if (!d) return;
+  d.at = [x, y];
+  if (!d.frame) d.frame = requestAnimationFrame(() => { d.frame = 0; settle(d); });
+}
+function settle(d){
+  if (!d.at || !cue || cue.drag !== d) return;
+  const [x, y] = d.at;
+  d.lifted.style.transform = `translate3d(${x - 20}px, ${y - 58}px, 0)`;
+  d.hint.style.transform = `translate3d(${x - 20}px, ${y - 86}px, 0)`;
+  const a = intent(x, y);
+  const key = [a.kind, a.row, a.at, a.below, a.text].join('|');
+  edgeScroll(y);
+  if (key === d.key) return;
+  d.key = key; d.action = a;
   const ok = a.kind === 'none' || a.kind === 'split' || fits(a.lines);
   d.lifted.textContent = (a.moved || [d.words[d.row][d.k]]).join(' ');
-  d.lifted.style.transform = `translate(${x - 20}px, ${y - 58}px)`;
   d.hint.textContent = ok ? a.text : '화면 폭을 넘어요';
   d.hint.className = 'dropHint' + (ok ? '' : ' bad');
-  d.hint.style.transform = `translate(${x - 20}px, ${y - 86}px)`;
-  const lines = [...d.item.querySelectorAll('.line')];
-  lines.forEach((l, r) => l.classList.toggle('target', a.kind === 'lines' && r === a.row));
+  d.item.querySelectorAll('.line').forEach((l, r) => l.classList.toggle('target', a.kind === 'lines' && r === a.row));
   d.item.classList.toggle('cutBefore', a.kind === 'split' && !a.below);
   d.item.classList.toggle('cutAfter', a.kind === 'split' && a.below);
   const moving = new Set(a.kind === 'split' ? Array.from({length: d.words.flat().length - a.at}, (_, j) => a.at + j)
     : a.kind === 'lines' ? (a.row === 1 ? d.words[0].map((_, j) => j).filter(j => j >= d.k) : d.words[1].map((_, j) => d.words[0].length + j)) : [d.i]);
   for (const chip of d.item.querySelectorAll('.chip')) chip.classList.toggle('moving', moving.has(+chip.dataset.i));
   drawFrame(a.kind === 'lines' ? a.lines : null);
-  edgeScroll(y);
 }
-let scroller = null, edgeSince = 0;
+let scroller = null, edgeSince = 0, edgeSpeed = 0;
 function edgeScroll(y){   // held at the list's very top or bottom edge a moment: the list scrolls
-  const list = $('cueList'), box = list.getBoundingClientRect();
-  const speed = y < box.top + 24 ? -6 : y > box.bottom - 24 ? 6 : 0;
+  const d = cue && cue.drag; if (!d) return;
+  const speed = y < d.geo.listTop + 24 ? -6 : y > d.geo.listBottom - 24 ? 6 : 0;
+  if (speed === edgeSpeed) return;
+  edgeSpeed = speed; edgeSince = Date.now();
   cancelAnimationFrame(scroller);
-  if (!speed) { edgeSince = 0; return; }
-  edgeSince = edgeSince || Date.now();
-  if (cue && cue.drag) scroller = requestAnimationFrame(function step(){
-    if (Date.now() - edgeSince > 350) list.scrollTop += speed;
-    if (cue && cue.drag) scroller = requestAnimationFrame(step);
+  if (speed) scroller = requestAnimationFrame(function step(){
+    const now = cue && cue.drag; if (!now || !edgeSpeed) return;
+    if (Date.now() - edgeSince > 350) { d.list.scrollTop += edgeSpeed; d.key = ''; settle(d); }
+    scroller = requestAnimationFrame(step);
   });
 }
 function dropDrag(){
-  const c = cue; cancelAnimationFrame(scroller);
+  const c = cue; cancelAnimationFrame(scroller); edgeSpeed = 0;
   if (!c || !c.drag) return null;
-  const d = c.drag; c.drag = null;
+  const d = c.drag;
+  if (d.frame) { cancelAnimationFrame(d.frame); d.frame = 0; settle(d); }   // where the finger last was
+  c.drag = null;
+  d.list.style.overflowY = '';
   d.lifted.remove(); d.hint.remove(); if (d.room) d.room.remove();
   d.item.classList.remove('cutBefore', 'cutAfter');
   for (const e of d.item.querySelectorAll('.chip, .line')) e.classList.remove('moving', 'target');
