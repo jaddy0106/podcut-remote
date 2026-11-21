@@ -112,32 +112,34 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 .chapter .n{font-size:12.5px;font-weight:400;color:var(--text3);white-space:nowrap}
 .chapter .arrow{color:var(--text3);font-size:18px;line-height:1;transition:transform .15s}
 .chapter[aria-expanded=true] .arrow{transform:rotate(90deg)}
-.cue{display:flex;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin:6px 0;cursor:pointer}
+.cueWrap{margin:10px 0 4px}
+/* Speaker, time and ▶ above the box: the box is the subtitle only, its lines as the video lays them out. */
+.cueMeta{display:flex;align-items:center;gap:8px;padding:0 4px 4px;font-size:12px;color:var(--text3);min-height:30px}
+.cueMeta b{color:var(--text2);font-weight:600}
+.cueMeta .pill{margin-left:auto}
+.play{width:30px;height:30px;min-height:0;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--text2)}
+.play svg{width:13px;height:13px;fill:currentColor;display:block}
+.play.on{background:var(--accent);color:#fff}
+.play.wait svg{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.3}}
+.cue{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 9px;cursor:pointer;--chip:15px}
 .cue.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.cue .who{flex:none;width:52px;font-size:12px;color:var(--text3);line-height:1.3}
-.cue .who b{display:block;color:var(--text2);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cue .text{flex:1;min-width:0;font-size:15px;line-height:1.4}
-.cue .text div{overflow-wrap:anywhere}
-.cue .pill{align-self:flex-start}
-.cue.editing{cursor:text}
-/* 16px or more: a smaller field makes iPhone zoom the page in when it gets the caret */
-.cue textarea{display:block;width:100%;margin:0;padding:0;border:0;outline:0;resize:none;overflow:hidden;background:transparent;color:var(--text);font:inherit;font-size:16px;line-height:1.4}
-.editBox{border-top:1px solid var(--line);background:var(--panel);padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
-.editBox>div{max-width:760px;margin:0 auto}
-.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.tools button{min-height:42px;padding:6px 4px;font-size:13.5px;line-height:1.2}
-.tools.two{grid-template-columns:1fr 1fr}
-.toolFoot{display:flex;align-items:center;gap:8px;margin-top:6px}
-.toolFoot .hint{flex:1;margin:0;font-size:12.5px}
-.toolFoot button{min-height:38px;padding:6px 14px;font-size:13.5px}
-/* Editing a card: the keyboard leaves about half the screen, and on iPhone its
-   floating bar (^ v ✓) covers the bottom of what is left. So the preview gets
-   small, the note one line, the buttons one row above the list (not at the
-   bottom, under that bar), and the card being edited goes to the list's top. */
-#cueView.editing .cueHead{padding-bottom:2px}
-#cueView.editing .frame{width:auto;height:calc(var(--vis, 100vh) * .2);max-width:100%;margin:0 auto}
-#cueView.editing .cueNote{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:3px 2px 2px}
-#cueView.editing .editBox{order:1;border-top:0;border-bottom:1px solid var(--line);padding:4px 10px 6px}
+/* One row per subtitle line, never wrapped: the letters shrink to fit (fitLines). */
+.line{display:flex;flex-wrap:nowrap;gap:3px;min-height:30px;align-items:center;transition:background .12s}
+.line+.line{border-top:1px dashed var(--line-strong);padding-top:5px;margin-top:5px}
+.line.room{border:1.5px dashed var(--line-strong);border-radius:8px;color:var(--text3);font-size:12.5px;align-items:center;justify-content:center;margin-top:6px;padding:0}
+.line.target{background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent);border-radius:8px}
+.chip{display:inline-flex;align-items:center;flex:none;min-height:28px;padding:2px 5px;border-radius:6px;background:var(--raised);border:1px solid var(--line);
+  font-size:var(--chip);white-space:nowrap;line-height:1.2;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;cursor:grab}
+.chip.moving{opacity:.35}
+.chip input{font:inherit;font-size:16px;border:0;outline:0;padding:0;margin:0;background:transparent;color:var(--text);width:6em}
+.chip.edit{background:var(--panel);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);cursor:text}
+.cue.cutBefore{box-shadow:0 -3px 0 0 var(--accent)}
+.cue.cutAfter{box-shadow:0 3px 0 0 var(--accent)}
+.lifted{position:fixed;z-index:20;pointer-events:none;left:0;top:0;padding:6px 11px;border-radius:9px;background:var(--accent);color:#fff;font-size:15px;
+  font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.28);white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis}
+.dropHint{position:fixed;z-index:20;pointer-events:none;left:0;top:0;font-size:12.5px;padding:3px 9px;border-radius:99px;background:var(--text);color:var(--window);white-space:nowrap}
+.dropHint.bad{background:var(--bad);color:#fff}
 #cueView.editing .cueList{order:2;padding-bottom:calc(var(--vis, 100vh) * .6)}
 #cueView.editing .tools{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 #cueView.editing .tools::-webkit-scrollbar{display:none}
@@ -196,20 +198,6 @@ button.me{background:transparent;padding:0;min-height:0;border-radius:50%;width:
     <div class="cueNote" id="cueNote"></div>
   </div>
   <div class="cueList" id="cueList"></div>
-  <div class="editBox" id="editBox" hidden>
-    <div>
-      <div class="tools" id="cueTools">
-        <button data-op="split" title="커서가 있는 어절부터 새 자막으로">✂ 여기서 나누기</button>
-        <button data-op="to_prev" title="커서 앞 어절을 앞 자막 끝으로">↑ 앞 자막으로</button>
-        <button data-op="to_next" title="커서부터 뒤 어절을 다음 자막 처음으로">↓ 다음 자막으로</button>
-        <button data-op="join_prev" title="이 자막을 앞 자막에 붙이기">앞과 합치기</button>
-        <button data-op="join_next" title="다음 자막을 이 자막에 붙이기">뒤와 합치기</button>
-        <button data-op="auto_lines" title="두 줄 나눔을 자동으로">자동 줄바꿈</button>
-      </div>
-      <div class="tools two" id="cueDirty" hidden><button id="cueCancel">되돌리기</button><button class="primary" id="cueSave">저장</button></div>
-      <div class="toolFoot"><div class="hint" id="cueHint"></div><button id="cueListen" aria-label="이 자막 구간 듣기">▶ 듣기</button></div>
-    </div>
-  </div>
 </section>
 
 <div class="sheet" id="startSheet" role="dialog" aria-modal="true" aria-labelledby="startTitle">
@@ -536,10 +524,28 @@ function play(url){
   player.src = url;
   player.play().then(() => setListen('■ 멈춤')).catch(() => setListen('▶ 재생'));
 }
-function setListen(text, busy){ $('cueListen').textContent = text; $('cueListen').disabled = !!busy; }
+let listenLabel = null;    // {card, text, busy}: the ▶ of the card being heard
+const ICONS = {play: '<svg viewBox="0 0 12 12"><path d="M2.5 1.2v9.6L10.6 6z"/></svg>',
+               pause: '<svg viewBox="0 0 12 12"><path d="M2.2 1.3h2.7v9.4H2.2zM7.1 1.3h2.7v9.4H7.1z"/></svg>'};
+// The ▶ of a card: ▶, ❚❚ while it plays, a pulsing ▶ while the PC prepares it.
+function playLook(b, state){
+  const text = state ? state.text : '▶ 듣기', playing = text.includes('멈춤'), waiting = !!(state && state.busy);
+  b.innerHTML = playing ? ICONS.pause : ICONS.play;
+  b.classList.toggle('on', playing || text.includes('재생'));
+  b.classList.toggle('wait', waiting);
+  b.disabled = waiting;
+  b.setAttribute('aria-label', playing ? '멈춤' : waiting ? '소리 준비 중' : '이 자막 구간 듣기');
+}
+function setListen(text, busy){
+  const id = cue && (listening ? listening.card : cue.chosen); if (!id) return;
+  listenLabel = text === '▶ 듣기' && !busy ? null : {card: id, text, busy: !!busy};
+  for (const b of $('cueList').querySelectorAll('.play')) playLook(b, listenLabel && b.dataset.card === listenLabel.card ? listenLabel : null);
+}
 player.onended = () => { if (player.src.startsWith('data:')) setListen('▶ 듣기'); };   // not the wake-up silence
-async function listen(){
-  const c = cue, card = cueCard(c && c.chosen); if (!card) return;
+async function listen(id){
+  const c = cue; if (!c) return;
+  if (id && id !== c.chosen) { if (!player.paused) player.pause(); setListen('▶ 듣기'); pickCue(id); }
+  const card = cueCard(c.chosen); if (!card) return;
   if (!player.paused && player.src.startsWith('data:')) { player.pause(); return setListen('▶ 듣기'); }
   const key = card.id + '\n' + card.lines.join('\n');
   if (clips[key]) return play(clips[key]);
@@ -571,12 +577,14 @@ async function listenRefresh(){
 // The PC lays the project's subtitle cards out and puts them on the server; this
 // page reads them, previews a card as the video shows it and sends one card's
 // lines back at a time. The PC applies them while it does not have the project open.
-let cue = null;   // {project, name, device, doc, stamp, asked, chosen, edit: {item, ta, meter, base}, open: chapters unfolded, pending: {commandId: {card, lines}}, failed: {card: message}, note}
+let cue = null;   // {project, name, device, doc, stamp, asked, chosen, drag, word, open: chapters unfolded, pending: {commandId: {card, lines}}, failed: {card: message}, note}
 const clock = ms => { const s = Math.floor(ms / 1000); return s >= 3600 ? Math.floor(s / 3600) + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0') : Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 async function openCues(p){
   if (!chosen) return;
-  cue = {project: p.pid, name: p.name, device: chosen.id, doc: null, stamp: null, asked: null, chosen: null, edit: null, open: new Set(), pending: {}, failed: {}, note: ''};
-  $('cueTitle').textContent = p.name; $('cueList').replaceChildren(); $('editBox').hidden = true; $('cueView').classList.remove('editing'); $('cueView').hidden = false;
+  const place = readPlace(chosen.id, p.pid);
+  cue = {project: p.pid, name: p.name, device: chosen.id, doc: null, stamp: null, asked: null, chosen: place.card || null, drag: null, word: null,
+         open: new Set(place.open || []), restore: place.anchor ? place : null, pending: {}, failed: {}, note: ''};
+  $('cueTitle').textContent = p.name; $('cueList').replaceChildren(); $('cueView').hidden = false;
   history.pushState({cue: true}, '');
   cueNote(online ? 'PC에서 자막을 불러오는 중… 이 화면을 여는 동안 PC는 원격 접속 중으로 잠깁니다.' : 'PC가 꺼져 있습니다. 마지막으로 받은 자막을 보여 줍니다.');
   await cueFetch();
@@ -600,11 +608,35 @@ async function beat(start){
     $('mainError').textContent = r.reason === 'pc' ? 'PC에서 원격 편집을 끝냈습니다. 다시 고치려면 프로젝트를 다시 여세요.' : '다른 휴대폰이 이 PC에서 편집을 시작해 이 화면을 닫았습니다.';
   } catch (e) { /* offline a moment: the next refresh beats again */ }
 }
+// Where the work was in each project (this phone only): the chapters unfolded,
+// the card chosen and the card at the top of the list; opened again, it is there.
+const placeKey = (device, project) => 'podcut-remote-place:' + device + ':' + project;
+function readPlace(device, project){
+  try { return JSON.parse(localStorage.getItem(placeKey(device, project)) || '{}') || {}; } catch { return {}; }
+}
+function keepPlace(){
+  const c = cue; if (!c || !c.doc || c.restore) return;
+  const list = $('cueList'), top = list.getBoundingClientRect().top;
+  const first = [...list.querySelectorAll('.cueWrap')].find(w => w.getBoundingClientRect().bottom > top + 4);
+  const place = {open: [...c.open], card: c.chosen, anchor: first ? first.querySelector('.cue').dataset.card : null,
+                 offset: first ? Math.round(first.getBoundingClientRect().top - top) : 0, at: Date.now()};
+  try { localStorage.setItem(placeKey(c.device, c.project), JSON.stringify(place)); } catch {}
+}
+function restorePlace(){
+  const c = cue, place = c && c.restore; if (!place || !c.doc) return;
+  c.restore = null;
+  const list = $('cueList'), box = list.querySelector('.cue[data-card="' + CSS.escape(place.anchor) + '"]');
+  if (box) list.scrollTop += box.closest('.cueWrap').getBoundingClientRect().top - list.getBoundingClientRect().top - (place.offset || 0);
+  if (c.chosen && cueCard(c.chosen)) cueNote('지난번 작업하던 자리입니다.');
+}
+let placeTimer = null;
 function closeCues(leave = true){
+  keepPlace();
   if (!player.paused) player.pause();
   listening = null;
-  if (cue && cue.edit) commitCue() || (cue.edit = null);   // leaving: a change that can be saved is
-  const c = cue; cue = null; $('cueView').hidden = true; $('editBox').hidden = true; $('cueView').classList.remove('editing');
+  if (cue && cue.word) finishWord(true);   // leaving: a word being retyped is saved
+  dropDrag();
+  const c = cue; cue = null; $('cueView').hidden = true;
   if (leave && c) rpc('ac_remote_presence', {token, device: c.device, project: null}).catch(() => {});   // the PC unlocks
 }
 function cueNote(text, bad){ if (!cue) return; cue.note = text; $('cueNote').textContent = text; $('cueNote').className = 'cueNote' + (bad ? ' bad' : ''); }
@@ -634,12 +666,12 @@ async function cueRefresh(){
   try { await cueFetch(); } catch (e) { cueNote(e.message, true); }
   if (changed) renderCues();
   if (!online && c.doc) cueNote('PC가 꺼져 있어 고칠 수 없습니다. PC에서 PODcut을 켜면 다시 고칠 수 있습니다.', true);
-  else if (c.doc && c.note.startsWith('PC에서 자막을 불러오는')) cueNote((c.doc.shared ? '팀 프로젝트: 고칠 때마다 PC가 그 챕터를 잠깐 맡아 저장합니다. ' : '') + '챕터를 펼쳐 자막을 누르면 그 자리에서 고칩니다. 줄바꿈은 Enter, 두 줄까지. 다른 곳을 누르거나 스크롤하면 저장되고, 바꾼 것이 없으면 그대로 닫힙니다. 이 화면을 여는 동안 PC는 원격 접속 중으로 잠기고, 나가면 풀립니다.');
+  else if (c.doc && c.note.startsWith('PC에서 자막을 불러오는')) cueNote((c.doc.shared ? '팀 프로젝트: 고칠 때마다 PC가 그 챕터를 잠깐 맡아 저장합니다. ' : '') + '어절을 길게 눌러 끌어 보세요: 아래 줄로 내리면 두 줄, 위로 올리면 한 줄, 자막 밖으로 빼면 거기서부터 새 자막. 어절을 두 번 누르면 고칩니다. 이 화면을 여는 동안 PC는 원격 접속 중으로 잠기고, 나가면 풀립니다.');
 }
 // The cards by chapter, each folded until tapped (all shown when there is one chapter).
 function renderCues(){
   const c = cue; if (!c || !c.doc) return;
-  if (c.edit) { c.stale = true; return editedChanged(); }   // rebuilt when the card being edited is let go: it keeps the caret
+  if (c.drag || c.word) { c.stale = true; return; }   // rebuilt when the finger lets go or the word is done
   c.stale = false;
   const doc = c.doc, list = [];
   const chapters = (doc.chapters || []).slice().sort((a, b) => a.at - b.at), groups = [];
@@ -663,143 +695,71 @@ function renderCues(){
   }
   if (!doc.cards.length) list.push(el('div', {class: 'empty'}, '자막이 없습니다. 익평삼 자막 카드가 있는 프로젝트에서 고칠 수 있습니다.'));
   $('cueList').replaceChildren(...list);
+  fitLines();
+  restorePlace();
   drawFrame();
+}
+// Each subtitle line in one row, as the video shows it: a card whose longest
+// line does not fit gets smaller letters (down to 10 px).
+const CHIP_PX = 15;
+function fitLines(root = $('cueList')){
+  for (const box of root.querySelectorAll('.cue')) {
+    box.style.setProperty('--chip', CHIP_PX + 'px');
+    for (let size = CHIP_PX, round = 0; round < 3; round++) {
+      let worst = 1;
+      for (const line of box.querySelectorAll('.line:not(.room)')) if (line.scrollWidth > line.clientWidth) worst = Math.min(worst, line.clientWidth / line.scrollWidth);
+      if (worst >= 1) break;
+      size = Math.max(10, Math.floor(size * worst * 2 - 0.5) / 2);
+      box.style.setProperty('--chip', size + 'px');
+      if (size === 10) break;
+    }
+  }
 }
 function cueItem(card){
   const c = cue, speaker = (c.doc.speakers || {})[card.row] || {};
   const waiting = Object.values(c.pending).find(p => p.card === card.id), failed = c.failed[card.id];
-  const item = el('div', {class: 'cue', role: 'button', tabindex: '0', onclick: e => chooseCue(card.id, e)},
-    el('div', {class: 'who'}, el('b', {}, speaker.name || ''), clock(card.at)),
-    el('div', {class: 'text'}, ...(waiting && waiting.lines || card.lines).map(l => el('div', {}, l))),
-    waiting ? el('span', {class: 'pill run'}, '저장 중') : failed ? el('span', {class: 'pill bad', title: failed}, '실패') : null);
+  const play = el('button', {class: 'play', onclick: e => { e.stopPropagation(); listen(card.id); }});
+  play.dataset.card = card.id; playLook(play, listenLabel && listenLabel.card === card.id ? listenLabel : null);
+  let n = 0;
+  const lines = (waiting && waiting.lines || card.lines).map((line, row) => el('div', {class: 'line'}, ...line.split(' ').filter(Boolean).map((text, k) => {
+    const chip = el('span', {class: 'chip'}, text);
+    chip.dataset.row = row; chip.dataset.k = k; chip.dataset.i = n++;
+    return chip;
+  })));
+  const item = el('div', {class: 'cue' + (c.chosen === card.id ? ' on' : ''), onclick: () => pickCue(card.id)}, el('div', {class: 'text'}, ...lines));
   item.dataset.card = card.id;
-  return item;
+  if (waiting) item.dataset.waiting = '1';
+  return el('div', {class: 'cueWrap'},
+    el('div', {class: 'cueMeta'}, el('b', {}, speaker.name || ''), el('span', {}, clock(card.at)), play,
+      waiting ? el('span', {class: 'pill run'}, '저장 중') : failed ? el('span', {class: 'pill bad', title: failed}, '실패') : null),
+    item);
 }
 function toggleChapter(key){
-  const c = cue; if (!c || (c.edit && !commitCue())) return;
+  const c = cue; if (!c || c.drag) return;
+  if (c.word) finishWord(true);
   if (c.open.has(key)) c.open.delete(key); else c.open.add(key);
-  renderCues();
+  renderCues(); keepPlace();
 }
 function cueCard(id){ return cue && cue.doc ? cue.doc.cards.find(c => c.id === id) : null; }
 
-// Tapping a card edits it in place. Tapping elsewhere or scrolling the list
-// lets it go: saved when changed, dropped when not.
-function chooseCue(id, event){
-  const c = cue, card = cueCard(id); if (!card || c.chosen === id) return;
-  if (Object.values(c.pending).some(p => p.card === id)) { cueNote('이 자막을 저장하는 중입니다. 끝난 뒤 다시 고치세요.'); return; }
-  const caret = event ? tapped(event, id) : null;
-  if (c.edit && !commitCue()) return;
-  const item = [...$('cueList').querySelectorAll('.cue')].find(e => e.dataset.card === id); if (!item) return;
-  const ta = el('textarea', {rows: '1', spellcheck: 'false', autocapitalize: 'off', autocomplete: 'off', 'aria-label': '자막 (줄바꿈은 Enter, 두 줄까지)'});
-  const meter = el('div', {class: 'meter'});
-  ta.value = card.lines.join('\n');
-  item.querySelector('.text').replaceChildren(ta, meter);
-  item.classList.add('on', 'editing');
-  c.chosen = id; c.edit = {item, ta, meter, base: ta.value};
-  ta.addEventListener('input', () => { c.scrollAt = $('cueList').scrollTop; cueInput(); });
-  $('editBox').hidden = false; $('cueView').classList.add('editing');
-  c.guard = Date.now() + 900; c.scrollAt = $('cueList').scrollTop;   // the keyboard coming up scrolls by itself
-  ta.focus();
-  const at = caret == null ? ta.value.length : caret;
-  ta.setSelectionRange(at, at);
-  reveal(); setTimeout(reveal, 350); setTimeout(reveal, 700);   // again once the keyboard is up
+// A tap picks the card the preview shows.
+function pickCue(id){
+  const c = cue; if (!c || c.chosen === id) return;
+  c.chosen = id; keepPlace();
+  for (const e of $('cueList').querySelectorAll('.cue')) e.classList.toggle('on', e.dataset.card === id);
   if (c.failed[id]) cueNote(c.failed[id], true);
-  if (!player.paused) player.pause();
-  setListen(listening && listening.card === id ? '준비 중…' : '▶ 듣기', !!listening && listening.card === id);
-  cueInput();
+  drawFrame();
 }
-// Where in the card's text a tap landed, so the caret goes there.
-function tapped(event, id){
-  const card = cueCard(id), point = document.caretRangeFromPoint ? document.caretRangeFromPoint(event.clientX, event.clientY)
-    : document.caretPositionFromPoint ? (p => p && {startContainer: p.offsetNode, startOffset: p.offset})(document.caretPositionFromPoint(event.clientX, event.clientY)) : null;
-  if (!card || !point || !point.startContainer) return null;
-  const line = point.startContainer.nodeType === 3 ? point.startContainer.parentElement : null;
-  const box = line && line.parentElement;
-  if (!box || !box.classList.contains('text')) return null;
-  const index = [...box.children].indexOf(line);
-  if (index < 0 || index >= card.lines.length) return null;
-  return card.lines.slice(0, index).reduce((n, l) => n + l.length + 1, 0) + Math.min(point.startOffset, card.lines[index].length);
-}
-function typed(){ return cue && cue.edit ? cue.edit.ta.value.split('\n').map(l => l.trim().replace(/\s+/g, ' ')).filter(Boolean) : []; }
-function problem(lines){
+const wordsOf = card => card.lines.map(l => l.split(' ').filter(Boolean));
+function fits(lines){
   const f = cue.doc.frame;
-  if (!lines.length) return '자막을 비울 수는 없습니다. 말을 지우려면 PC에서 삭제하세요.';
-  if (lines.length > f.maxLines) return '자막은 ' + f.maxLines + '줄까지입니다.';
-  if (lines.some(l => lineWidth(l, f) > f.maxLine)) return '화면 폭을 넘는 줄이 있습니다. 줄을 나누세요.';
-  return null;
-}
-function dirty(){ const c = cue; return !!(c && c.edit) && typed().join('\n') !== c.edit.base.split('\n').map(l => l.trim().replace(/\s+/g, ' ')).filter(Boolean).join('\n'); }
-function cueInput(){
-  const c = cue; if (!c || !c.doc || !c.edit) return;
-  const f = c.doc.frame, lines = typed(), ta = c.edit.ta;
-  ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
-  const over = lines.map(l => lineWidth(l, f) > f.maxLine);
-  const parts = lines.map((l, i) => el('span', {class: over[i] ? 'over' : ''}, (i + 1) + '줄 ' + Math.round(lineWidth(l, f) / f.maxLine * 100) + '%'));
-  if (lines.length > f.maxLines) parts.push(el('span', {class: 'over'}, f.maxLines + '줄까지입니다'));
-  if (over.some(Boolean)) parts.push(el('span', {class: 'over'}, '화면 폭을 넘습니다. 줄을 나누세요.'));
-  c.edit.meter.replaceChildren(...parts);
-  const changed = dirty();
-  $('cueTools').hidden = changed; $('cueDirty').hidden = !changed;
-  $('cueSave').disabled = !!problem(lines) || !online;
-  toolState();
-  drawFrame(lines);
-}
-// The word the caret is at: words wholly before it go first (split, to_prev, to_next).
-function caretWord(){
-  const ta = cue.edit.ta, before = ta.value.slice(0, ta.selectionStart), after = ta.value.slice(ta.selectionStart);
-  const n = before.split(/\s+/).filter(Boolean).length;
-  return (!before || /\s$/.test(before) || !after || /^\s/.test(after)) ? n : n - 1;
-}
-function toolState(){
-  const c = cue; if (!c || !c.edit) return;
-  const card = cueCard(c.chosen); if (!card) return;
-  if (dirty()) { $('cueHint').textContent = '글자를 고쳤습니다. 다른 곳을 누르거나 스크롤하면 저장됩니다.'; return; }
-  const n = card.lines.join(' ').split(/\s+/).filter(Boolean).length, at = caretWord();
-  const index = c.doc.cards.indexOf(card), same = x => x.row === card.row;
-  const before = c.doc.cards.slice(0, index).some(same), after = c.doc.cards.slice(index + 1).some(same);
-  const enable = {split: at > 0 && at < n, to_prev: before && at > 0 && at < n, to_next: after && at > 0 && at < n,
-                  join_prev: before, join_next: after, auto_lines: true};
-  for (const b of $('cueTools').children) b.disabled = !online || !enable[b.dataset.op];
-  $('cueHint').textContent = at <= 0 ? '커서가 자막 처음에 있습니다. 나누거나 보낼 자리에 커서를 두세요.'
-    : at >= n ? '커서가 자막 끝에 있습니다. 나누거나 보낼 자리에 커서를 두세요.'
-    : '커서 앞 ' + at + '어절 · 뒤 ' + (n - at) + '어절';
-}
-document.addEventListener('selectionchange', () => { if (cue && cue.edit && document.activeElement === cue.edit.ta) toolState(); });
-
-// Lets the card being edited go. false (and it stays) when its change cannot be a subtitle.
-function commitCue(){
-  const c = cue; if (!c || !c.edit) return true;
-  const card = cueCard(c.chosen), lines = typed();
-  if (card && dirty()) {
-    const wrong = problem(lines);
-    if (wrong) { cueNote(wrong + ' 고치거나 ‘되돌리기’를 누르세요.', true); return false; }
-    send(card, {lines}, lines, 'PC로 보냈습니다. PC가 받아 저장하면 목록이 바뀝니다.');
-  }
-  letGo();
-  return true;
-}
-function letGo(){
-  const c = cue; if (!c) return;
-  if (c.edit && document.activeElement === c.edit.ta) c.edit.ta.blur();
-  c.chosen = null; c.edit = null; $('editBox').hidden = true; $('cueView').classList.remove('editing');
-  if (!player.paused) player.pause();
-  renderCues();
-}
-// The card being edited at the top of the list, where the keyboard and its bar
-// cannot cover it. The list's own scroll here does not let the card go.
-function reveal(){
-  const c = cue; if (!c || !c.edit) return;
-  const list = $('cueList'), item = c.edit.item;
-  const top = item.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop - 6;
-  c.guard = Math.max(c.guard || 0, Date.now() + 600);
-  if (Math.abs(list.scrollTop - top) > 2) list.scrollTop = top;
-  c.scrollAt = list.scrollTop;
-  drawFrame(typed());
+  return lines.length <= f.maxLines && lines.every(l => lineWidth(l, f) <= f.maxLine);
 }
 async function send(card, args, lines, told){
   const c = cue, local = 'local' + Math.random();
   c.pending[local] = {card: card.id, lines}; delete c.failed[card.id];
   cueNote(told);
+  renderCues();
   try {
     const id = await rpc('ac_remote_command', {token, device: c.device, kind: 'edit_cues', args: {project: c.project, card: card.id, before: card.lines, ...args}});
     c.pending[id] = c.pending[local];
@@ -807,22 +767,159 @@ async function send(card, args, lines, told){
   } catch (e) { c.failed[card.id] = e.message; cueNote(e.message, true); }
   delete c.pending[local]; renderCues();
 }
-// The subtitle buttons: the PC does them as its editor would (remote_cues.arrange).
-const OPS = {split: '나누기', to_prev: '앞 자막으로 보내기', to_next: '다음 자막으로 보내기', join_prev: '앞과 합치기', join_next: '뒤와 합치기', auto_lines: '자동 줄바꿈'};
-function arrange(op){
-  const c = cue, card = cueCard(c && c.chosen); if (!card || dirty()) return;
-  const at = ['split', 'to_prev', 'to_next'].includes(op) ? caretWord() : 0;
-  send(card, {op, at}, card.lines, OPS[op] + ': PC로 보냈습니다. PC가 받아 정리하면 목록이 바뀝니다.');
-  letGo();
+
+// ── Words moved by hand, as in the PC's transcript ──
+// A long press lifts a word (a short move first is a scroll). Dropped on the
+// card's lower line (a one-line card shows room for it) it starts the second
+// line there; a word of the second line dropped on the first joins the lines;
+// dropped outside its card it starts a new subtitle. Two taps retype a word.
+const LIFT_MS = 280;
+let press = null, lastTap = null;
+function chipDown(e){
+  const chip = e.target.closest('.chip'), c = cue;
+  if (!chip || !c || c.drag || c.word || e.button > 0) return;
+  const item = chip.closest('.cue');
+  if (item.dataset.waiting) return;
+  press = {chip, item, x: e.clientX, y: e.clientY, id: e.pointerId, timer: setTimeout(() => lift(e.clientX, e.clientY), LIFT_MS)};
 }
-// The card that is being edited changed on the PC meanwhile.
-function editedChanged(){
-  const c = cue, card = cueCard(c.chosen);
-  if (!card) { cueNote('PC에서 이 자막이 바뀌었습니다. 다시 골라 고치세요.', true); c.edit = null; c.chosen = null; $('editBox').hidden = true; $('cueView').classList.remove('editing'); return renderCues(); }
-  if (card.lines.join('\n') === c.edit.base) return;
-  if (dirty()) return cueNote('PC에서 이 자막이 바뀌었습니다. 저장하면 실패하니 ‘되돌리기’를 누르세요.', true);
-  c.edit.base = c.edit.ta.value = card.lines.join('\n'); cueInput();
-  cueNote('PC에서 이 자막이 바뀌어 새로 채웠습니다.', true);
+function chipMove(e){
+  const c = cue; if (!c) return;
+  if (press && !c.drag) {
+    if (Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) { clearTimeout(press.timer); press = null; }   // a scroll
+    return;
+  }
+  if (c && c.drag && e.pointerId === c.drag.pointer) { e.preventDefault(); aim(e.clientX, e.clientY); }
+}
+function chipUp(e){
+  const c = cue;
+  if (c && c.drag) { if (e.type === 'pointercancel') dropDrag(); else drop(); return; }
+  if (!press) return;
+  clearTimeout(press.timer);
+  const chip = press.chip; press = null;
+  if (e.type !== 'pointerup') return;
+  const now = Date.now();
+  if (lastTap && lastTap.chip === chip && now - lastTap.at < 380) { lastTap = null; retype(chip); }
+  else lastTap = {chip, at: now};
+}
+function lift(x, y){
+  const c = cue; if (!press || !c) return;
+  const {chip, item, id: pointer} = press, card = cueCard(item.dataset.card); press = null;
+  if (!card || !online) { if (!online) cueNote('PC가 꺼져 있어 고칠 수 없습니다.', true); return; }
+  pickCue(card.id);
+  const words = wordsOf(card), row = +chip.dataset.row, k = +chip.dataset.k, i = +chip.dataset.i;
+  const lifted = el('div', {class: 'lifted'}, chip.textContent), hint = el('div', {class: 'dropHint'});
+  document.body.append(lifted, hint);
+  let room = null;
+  if (words.length === 1) {   // somewhere to drop a word for a second line
+    room = el('div', {class: 'line room'}, '여기로 내리면 두 줄');
+    item.querySelector('.text').append(room);
+  }
+  c.drag = {card, item, words, row, k, i, lifted, hint, room, pointer, action: null};
+  if (navigator.vibrate) navigator.vibrate(8);
+  aim(x, y);
+}
+// What dropping here would do: {kind, lines | at, text}.
+function intent(x, y){
+  const d = cue.drag, box = d.item.getBoundingClientRect();
+  const all = d.words.flat(), n = all.length;
+  if (y < box.top - 10 || y > box.bottom + 10) {
+    if (d.i === 0) return {kind: 'none', text: '첫 어절에서는 나눌 수 없어요'};
+    return {kind: 'split', at: d.i, moved: all.slice(d.i), below: y > box.bottom, text: '여기서부터 새 자막'};
+  }
+  const lines = [...d.item.querySelectorAll('.line')];
+  const second = lines[1];
+  const target = second && y >= second.getBoundingClientRect().top - 3 ? 1 : 0;
+  if (target === d.row) return {kind: 'none', text: d.words.length === 1 ? '아래 칸으로 내리면 두 줄' : '다른 줄로 옮겨 보세요'};
+  if (target === 1) {   // a first-line word down: the second line starts at it
+    const first = d.words[0].slice(0, d.k), rest = d.words[0].slice(d.k).concat(d.words[1] || []);
+    const next = [first.join(' '), rest.join(' ')].filter(Boolean);
+    return {kind: 'lines', lines: next, moved: d.words[0].slice(d.k), row: 1, text: next.length === 1 ? '한 줄로' : '두 줄로'};
+  }
+  return {kind: 'lines', lines: [all.join(' ')], moved: d.words[1], row: 0, text: '한 줄로 합치기'};   // a second-line word up
+}
+function aim(x, y){
+  const d = cue.drag; if (!d) return;
+  const a = d.action = intent(x, y);
+  const ok = a.kind === 'none' || a.kind === 'split' || fits(a.lines);
+  d.lifted.textContent = (a.moved || [d.words[d.row][d.k]]).join(' ');
+  d.lifted.style.transform = `translate(${x - 20}px, ${y - 58}px)`;
+  d.hint.textContent = ok ? a.text : '화면 폭을 넘어요';
+  d.hint.className = 'dropHint' + (ok ? '' : ' bad');
+  d.hint.style.transform = `translate(${x - 20}px, ${y - 86}px)`;
+  const lines = [...d.item.querySelectorAll('.line')];
+  lines.forEach((l, r) => l.classList.toggle('target', a.kind === 'lines' && r === a.row));
+  d.item.classList.toggle('cutBefore', a.kind === 'split' && !a.below);
+  d.item.classList.toggle('cutAfter', a.kind === 'split' && a.below);
+  const moving = new Set(a.kind === 'split' ? Array.from({length: d.words.flat().length - a.at}, (_, j) => a.at + j)
+    : a.kind === 'lines' ? (a.row === 1 ? d.words[0].map((_, j) => j).filter(j => j >= d.k) : d.words[1].map((_, j) => d.words[0].length + j)) : [d.i]);
+  for (const chip of d.item.querySelectorAll('.chip')) chip.classList.toggle('moving', moving.has(+chip.dataset.i));
+  drawFrame(a.kind === 'lines' ? a.lines : null);
+  edgeScroll(y);
+}
+let scroller = null, edgeSince = 0;
+function edgeScroll(y){   // held at the list's very top or bottom edge a moment: the list scrolls
+  const list = $('cueList'), box = list.getBoundingClientRect();
+  const speed = y < box.top + 24 ? -6 : y > box.bottom - 24 ? 6 : 0;
+  cancelAnimationFrame(scroller);
+  if (!speed) { edgeSince = 0; return; }
+  edgeSince = edgeSince || Date.now();
+  if (cue && cue.drag) scroller = requestAnimationFrame(function step(){
+    if (Date.now() - edgeSince > 350) list.scrollTop += speed;
+    if (cue && cue.drag) scroller = requestAnimationFrame(step);
+  });
+}
+function dropDrag(){
+  const c = cue; cancelAnimationFrame(scroller);
+  if (!c || !c.drag) return null;
+  const d = c.drag; c.drag = null;
+  d.lifted.remove(); d.hint.remove(); if (d.room) d.room.remove();
+  d.item.classList.remove('cutBefore', 'cutAfter');
+  for (const e of d.item.querySelectorAll('.chip, .line')) e.classList.remove('moving', 'target');
+  if (c.stale) renderCues(); else drawFrame();
+  return d;
+}
+function drop(){
+  const d = dropDrag(); if (!d || !d.action) return;
+  const a = d.action, card = d.card;
+  if (a.kind === 'split') return send(card, {op: 'split', at: a.at}, card.lines, '자막을 나눠 PC로 보냈습니다.');
+  if (a.kind !== 'lines') return;
+  if (!fits(a.lines)) return cueNote('화면 폭을 넘어서 그렇게 바꿀 수 없습니다.', true);
+  send(card, {lines: a.lines}, a.lines, a.lines.length === 1 ? '한 줄로 합쳐 PC로 보냈습니다.' : '줄을 바꿔 PC로 보냈습니다.');
+}
+// Two taps: the word becomes a field (16 px: no zoom on iPhone). Enter or a tap
+// elsewhere saves a change, Esc puts it back.
+function retype(chip){
+  const c = cue, item = chip.closest('.cue'), card = cueCard(item.dataset.card);
+  if (!card || item.dataset.waiting) return;
+  if (!online) return cueNote('PC가 꺼져 있어 고칠 수 없습니다.', true);
+  pickCue(card.id);
+  const input = el('input', {value: chip.textContent, enterkeyhint: 'done', autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false', 'aria-label': '어절 고치기'});
+  input.style.width = Math.max(3, chip.textContent.length + 2) + 'em';
+  chip.replaceChildren(input); chip.classList.add('edit');
+  c.word = {chip, input, card, i: +chip.dataset.i, before: input.value};
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); finishWord(true); } else if (e.key === 'Escape') finishWord(false); });
+  input.addEventListener('input', () => {
+    input.style.width = Math.max(3, input.value.length + 2) + 'em';
+    drawFrame(retyped(c.word, input.value));
+  });
+  input.addEventListener('blur', () => finishWord(true));
+  input.focus(); input.select();
+}
+function retyped(w, text){
+  let n = 0;
+  return wordsOf(w.card).map(line => line.map(word => n++ === w.i ? text.trim().replace(/\s+/g, ' ') : word).filter(Boolean).join(' ')).filter(Boolean);
+}
+function finishWord(save){
+  const c = cue; if (!c || !c.word) return;
+  const w = c.word; c.word = null;
+  const text = w.input.value.trim().replace(/\s+/g, ' ');
+  const lines = retyped(w, text);
+  w.chip.classList.remove('edit'); w.chip.textContent = w.before;
+  if (save && text && text !== w.before) {
+    if (!fits(lines)) cueNote('‘' + text + '’로 고치면 화면 폭을 넘습니다. 줄을 나눈 뒤 고치세요.', true);
+    else return send(w.card, {lines}, lines, '고친 어절을 PC로 보냈습니다.');
+  } else if (save && !text) cueNote('어절을 비울 수는 없습니다. 말을 지우려면 PC에서 삭제하세요.', true);
+  if (c.stale) renderCues(); else drawFrame();
 }
 const fontReady = (document.fonts && document.fonts.load) ? document.fonts.load('600 56px Pretendard', '가나다').catch(() => {}) : Promise.resolve();
 const measure = document.createElement('canvas').getContext('2d');
@@ -865,36 +962,28 @@ window.addEventListener('pagehide', () => {   // the page closed: the PC unlocks
   fetch(API + '/rest/v1/rpc/ac_remote_presence', {method: 'POST', keepalive: true, headers: {apikey: KEY, 'Content-Type': 'application/json'},
     body: JSON.stringify({token, device: cue.device, project: null})}).catch(() => {});
 });
-// The bar's buttons keep the caret (and the keyboard) in the card.
-for (const b of $('editBox').querySelectorAll('button')) b.addEventListener('pointerdown', e => e.preventDefault());
-for (const b of $('cueTools').children) b.onclick = () => arrange(b.dataset.op);
-$('cueCancel').onclick = () => { if (cue && cue.edit) { cue.edit.ta.value = cue.edit.base; cueInput(); } };
-$('cueSave').onclick = () => commitCue();
-$('cueListen').onclick = listen;
-// A tap outside the card being edited (not on another card: that one opens) lets it go.
-$('cueView').addEventListener('pointerdown', e => {
-  const c = cue; if (!c || !c.edit) return;
-  if (c.edit.item.contains(e.target) || $('editBox').contains(e.target) || e.target.closest('.cue, .chapter, #cueBack')) return;
-  commitCue();
-});
-// So does scrolling the list, but not the scroll the keyboard or a growing card makes.
-$('cueList').addEventListener('scroll', () => {
-  const c = cue; if (!c || !c.edit || Date.now() < c.guard) return;
-  if (Math.abs($('cueList').scrollTop - c.scrollAt) < 48) return;
-  if (!commitCue()) { c.scrollAt = $('cueList').scrollTop; c.guard = Date.now() + 1500; }
+const cueList = $('cueList');
+cueList.addEventListener('pointerdown', chipDown);
+document.addEventListener('pointermove', chipMove, {passive: false});
+document.addEventListener('pointerup', chipUp);
+document.addEventListener('pointercancel', chipUp);
+// A lifted word holds the page still (touch scrolling is not a pointer event).
+document.addEventListener('touchmove', e => { if (cue && (cue.drag || press)) { if (cue.drag) e.preventDefault(); } }, {passive: false});
+cueList.addEventListener('contextmenu', e => { if (e.target.closest('.chip')) e.preventDefault(); });
+cueList.addEventListener('scroll', () => {
+  if (press) { clearTimeout(press.timer); press = null; }
+  clearTimeout(placeTimer); placeTimer = setTimeout(keepPlace, 400);
 }, {passive: true});
-// iPhone: the keyboard covers the page instead of shrinking it; fit the editor
-// to what is visible so the buttons stay above the keyboard.
+// iPhone: the keyboard covers the page instead of shrinking it; the screen fits what is visible.
 function fitView(){
   const v = window.visualViewport, s = $('cueView').style; if (!v) return;
   s.top = v.offsetTop + 'px'; s.height = v.height + 'px'; s.bottom = 'auto';
-  s.setProperty('--vis', v.height + 'px');
-  if (cue && cue.edit) { cue.guard = Math.max(cue.guard || 0, Date.now() + 600); reveal(); }
+  if (cue && cue.word) cue.word.chip.scrollIntoView({block: 'nearest'});
 }
 fitView();
 if (window.visualViewport) { visualViewport.addEventListener('resize', fitView); visualViewport.addEventListener('scroll', fitView); }
-window.addEventListener('resize', () => drawFrame());
-fontReady.then(() => { if (cue) { drawFrame(); if (cue.edit) cueInput(); } });
+window.addEventListener('resize', () => { drawFrame(); if (cue) fitLines(); });
+fontReady.then(() => { if (cue) drawFrame(); });
 
 $('pair').onclick = () => pair($('code').value);
 $('code').onkeydown = e => { if (e.key === 'Enter') pair($('code').value); };
