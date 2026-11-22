@@ -112,7 +112,7 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 .chapter .n{font-size:12.5px;font-weight:400;color:var(--text3);white-space:nowrap}
 .chapter .arrow{color:var(--text3);font-size:18px;line-height:1;transition:transform .15s}
 .chapter[aria-expanded=true] .arrow{transform:rotate(90deg)}
-.cueWrap{margin:10px 0 4px}
+.cueWrap{margin:10px 0 4px;content-visibility:auto;contain-intrinsic-size:auto 96px}   /* cards off screen: not laid out */
 /* Speaker, time and ▶ above the box: the box is the subtitle only, its lines as the video lays them out. */
 .cueMeta{display:flex;align-items:center;gap:8px;padding:0 4px 4px;font-size:12px;color:var(--text3);min-height:30px}
 .cueMeta b{color:var(--text2);font-weight:600}
@@ -308,7 +308,9 @@ async function refresh(){
   if (!token) return;
   try { view = await rpc('ac_remote_view', {token}); $('mainError').textContent = ''; render(); if (cue) await cueRefresh(); }
   catch (e) { if (token) $('mainError').textContent = e.message; }
-  if (token) timer = setTimeout(refresh, document.hidden ? 30000 : cue ? 2000 : 3000);
+  // An edit on its way: every second, so its result shows as soon as the PC has it.
+  const waiting = cue && (Object.keys(cue.pending).length || listening);
+  if (token) timer = setTimeout(refresh, document.hidden ? 30000 : waiting ? 1000 : cue ? 2000 : 3000);
 }
 
 function render(){
@@ -627,7 +629,15 @@ function restorePlace(){
   const c = cue, place = c && c.restore; if (!place || !c.doc) return;
   c.restore = null;
   const list = $('cueList'), box = list.querySelector('.cue[data-card="' + CSS.escape(place.anchor) + '"]');
-  if (box) list.scrollTop += box.closest('.cueWrap').getBoundingClientRect().top - list.getBoundingClientRect().top - (place.offset || 0);
+  // Cards off screen have estimated heights until they are drawn: aim again
+  // for a few frames as the ones above it get their real size.
+  const aimAt = (tries) => {
+    if (!box || !box.isConnected || cue !== c) return;
+    const off = box.closest('.cueWrap').getBoundingClientRect().top - list.getBoundingClientRect().top - (place.offset || 0);
+    if (Math.abs(off) > 1) list.scrollTop += off;
+    if (tries > 0) requestAnimationFrame(() => aimAt(tries - 1));
+  };
+  aimAt(6);
   if (c.chosen && cueCard(c.chosen)) cueNote('지난번 작업하던 자리입니다.');
 }
 let placeTimer = null;
@@ -687,33 +697,77 @@ function renderCues(){
   for (const g of groups) {
     if (!g.cards.length) continue;
     if (g.key !== null) {
-      const open = c.open.has(g.key);
-      list.push(el('button', {class: 'chapter', 'aria-expanded': String(open), onclick: () => toggleChapter(g.key)},
-        el('span', {class: 'arrow'}, '›'), el('span', {class: 't'}, g.title || '챕터'), el('span', {class: 'n'}, clock(g.cards[0].at) + ' · ' + g.cards.length + '개')));
+      const open = c.open.has(g.key), label = clock(g.cards[0].at) + ' · ' + g.cards.length + '개';
+      list.push(kept(c, ['chapter', g.key, open, g.title, label], () => el('button', {class: 'chapter', 'aria-expanded': String(open), onclick: () => toggleChapter(g.key)},
+        el('span', {class: 'arrow'}, '›'), el('span', {class: 't'}, g.title || '챕터'), el('span', {class: 'n'}, label))));
       if (!open) continue;
     }
-    for (const card of g.cards) list.push(cueItem(card));
+    for (const card of g.cards) {
+      const waiting = Object.values(c.pending).find(p => p.card === card.id);
+      list.push(kept(c, ['card', card.id, card.at, card.row, waiting ? waiting.lines : card.lines, !!waiting, c.failed[card.id] || ''], () => cueItem(card)));
+    }
   }
   if (!doc.cards.length) list.push(el('div', {class: 'empty'}, '자막이 없습니다. 익평삼 자막 카드가 있는 프로젝트에서 고칠 수 있습니다.'));
-  $('cueList').replaceChildren(...list);
-  fitLines();
+  place(c, $('cueList'), list);
   restorePlace();
   drawFrame();
 }
+// A refresh builds only the cards that changed (a long chapter is a thousand
+// cards; building and laying them all out again took seconds on a phone):
+// the others keep their elements, and the list's children change only where
+// they differ.
+function kept(c, key, make){
+  const k = JSON.stringify(key);
+  c.nodes = c.nodes || new Map(); c.seen = c.seen || new Map();
+  let node = c.nodes.get(k);
+  if (!node) { node = make(); node.dataset.key = k; fresh(node); }
+  c.seen.set(k, node);
+  return node;
+}
+function place(c, root, list){
+  let at = root.firstChild;
+  for (const node of list) {
+    if (node === at) { at = at.nextSibling; continue; }
+    root.insertBefore(node, at);
+  }
+  while (at) { const next = at.nextSibling; at.remove(); at = next; }
+  c.nodes = c.seen; c.seen = new Map();
+  for (const box of root.querySelectorAll('.cue')) box.classList.toggle('on', box.dataset.card === c.chosen);
+}
 // Each subtitle line in one row, as the video shows it: a card whose longest
-// line does not fit gets smaller letters (down to 10 px).
+// line does not fit gets smaller letters (down to 10 px). Done when a card
+// comes near the screen, once.
 const CHIP_PX = 15;
-function fitLines(root = $('cueList')){
-  for (const box of root.querySelectorAll('.cue')) {
-    box.style.setProperty('--chip', CHIP_PX + 'px');
-    for (let size = CHIP_PX, round = 0; round < 3; round++) {
-      let worst = 1;
-      for (const line of box.querySelectorAll('.line:not(.room)')) if (line.scrollWidth > line.clientWidth) worst = Math.min(worst, line.clientWidth / line.scrollWidth);
-      if (worst >= 1) break;
-      size = Math.max(10, Math.floor(size * worst * 2 - 0.5) / 2);
-      box.style.setProperty('--chip', size + 'px');
-      if (size === 10) break;
-    }
+const fitting = 'IntersectionObserver' in window ? new IntersectionObserver(seen => {
+  const boxes = seen.filter(e => e.isIntersecting).map(e => e.target);
+  for (const box of boxes) fitting.unobserve(box);
+  if (boxes.length) fitBoxes(boxes);
+}, {root: null, rootMargin: '400px 0px'}) : null;
+function fresh(node){
+  const box = node.querySelector && node.querySelector('.cue');
+  if (!box) return;
+  if (fitting) fitting.observe(box); else requestAnimationFrame(() => fitBoxes([box]));
+}
+function fitLines(root = $('cueList')){ fitBoxes([...root.querySelectorAll('.cue')]); }
+function fitBoxes(boxes){
+  // Reads all, then writes all: a read after a write lays the list out again.
+  boxes = boxes.filter(b => b.isConnected);
+  for (const box of boxes) box.style.setProperty('--chip', CHIP_PX + 'px');
+  let todo = boxes.map(box => [box, CHIP_PX]);
+  for (let round = 0; round < 3 && todo.length; round++) {
+    const worst = todo.map(([box]) => {
+      let w = 1;
+      for (const line of box.querySelectorAll('.line:not(.room)')) if (line.scrollWidth > line.clientWidth) w = Math.min(w, line.clientWidth / line.scrollWidth);
+      return w;
+    });
+    const next = [];
+    todo.forEach(([box, size], n) => {
+      if (worst[n] >= 1) return;
+      const smaller = Math.max(10, Math.floor(size * worst[n] * 2 - 0.5) / 2);
+      box.style.setProperty('--chip', smaller + 'px');
+      if (smaller > 10) next.push([box, smaller]);
+    });
+    todo = next;
   }
 }
 function cueItem(card){
