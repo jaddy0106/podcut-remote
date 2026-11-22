@@ -672,7 +672,7 @@ async function cueRefresh(){
     if (!e || e.status === 'queued' || e.status === 'running') continue;
     delete c.pending[id]; changed = true;
     if (e.status === 'failed') { c.failed[item.card] = e.message || '고치지 못했습니다.'; cueNote('고치지 못했습니다: ' + c.failed[item.card], true); }
-    else cueNote(e.message || '고쳤습니다.');
+    else cueNote((e.message || '고쳤습니다.') + (item.at ? ' · 보내고 ' + ((Date.now() - item.at) / 1000).toFixed(1) + '초' : ''));   // how long, to see where it waits
   }
   try { await cueFetch(); } catch (e) { cueNote(e.message, true); }
   if (changed) renderCues();
@@ -812,7 +812,7 @@ function fits(lines){
 }
 async function send(card, args, lines, told){
   const c = cue, local = 'local' + Math.random();
-  c.pending[local] = {card: card.id, lines}; delete c.failed[card.id];
+  c.pending[local] = {card: card.id, lines, at: Date.now()}; delete c.failed[card.id];
   cueNote(told);
   renderCues();
   try {
