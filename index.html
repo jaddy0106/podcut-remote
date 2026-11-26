@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#F3F4F6" media="(prefers-color-scheme: light)">
@@ -143,6 +143,8 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 .dropHint{position:fixed;z-index:20;pointer-events:none;left:0;top:0;will-change:transform;font-size:12.5px;padding:3px 9px;border-radius:99px;background:var(--text);color:var(--window);white-space:nowrap}
 .dropHint.bad{background:var(--bad);color:#fff}
 #cueView.editing .cueList{order:2;padding-bottom:calc(var(--vis, 100vh) * .6)}
+/* Retyping a word: the keyboard takes half the screen, the preview gives the list room. */
+#cueView.typing .frame{width:52%;margin:0 auto}
 #cueView.editing .tools{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 #cueView.editing .tools::-webkit-scrollbar{display:none}
 #cueView.editing .tools button{flex:none;min-height:36px;padding:6px 11px;white-space:nowrap}
@@ -911,7 +913,8 @@ async function send(card, args, lines, told){
 // A long press lifts a word (a short move first is a scroll). Dropped on the
 // card's lower line (a one-line card shows room for it) it starts the second
 // line there; a word of the second line dropped on the first joins the lines;
-// dropped outside its card it starts a new subtitle. Two taps retype a word.
+// dropped outside its card it starts a new subtitle; the first word dropped
+// above its card joins the card to the subtitle before (그 사람의 앞 자막). Two taps retype a word.
 const LIFT_MS = 280;
 let press = null, lastTap = null;
 function chipDown(e){
@@ -968,8 +971,9 @@ function intent(x, y){
   const d = cue.drag, shift = d.geo.scroll - d.list.scrollTop;   // the list scrolled since: everything moved with it
   const box = {top: d.geo.top + shift, bottom: d.geo.bottom + shift};
   const all = d.words.flat();
+  if (y < box.top - 10 && d.i === 0) return {kind: 'join', moved: all, text: '앞 자막과 합치기'};
   if (y < box.top - 10 || y > box.bottom + 10) {
-    if (d.i === 0) return {kind: 'none', text: '첫 어절에서는 나눌 수 없어요'};
+    if (d.i === 0) return {kind: 'none', text: '위 자막으로 올리면 합쳐요'};
     return {kind: 'split', at: d.i, moved: all.slice(d.i), below: y > box.bottom, text: '여기서부터 새 자막'};
   }
   const target = d.geo.second !== null && y >= d.geo.second + shift - 3 ? 1 : 0;
@@ -999,14 +1003,15 @@ function settle(d){
   edgeScroll(y);
   if (key === d.key) return;
   d.key = key; d.action = a;
-  const ok = a.kind === 'none' || a.kind === 'split' || fits(a.lines);
+  const ok = a.kind === 'none' || a.kind === 'split' || a.kind === 'join' || fits(a.lines);
   d.lifted.textContent = (a.moved || [d.words[d.row][d.k]]).join(' ');
   d.hint.textContent = ok ? a.text : '화면 폭을 넘어요';
   d.hint.className = 'dropHint' + (ok ? '' : ' bad');
   d.item.querySelectorAll('.line').forEach((l, r) => l.classList.toggle('target', a.kind === 'lines' && r === a.row));
-  d.item.classList.toggle('cutBefore', a.kind === 'split' && !a.below);
+  d.item.classList.toggle('cutBefore', (a.kind === 'split' && !a.below) || a.kind === 'join');
   d.item.classList.toggle('cutAfter', a.kind === 'split' && a.below);
-  const moving = new Set(a.kind === 'split' ? Array.from({length: d.words.flat().length - a.at}, (_, j) => a.at + j)
+  const moving = new Set(a.kind === 'join' ? d.words.flat().map((_, j) => j)
+    : a.kind === 'split' ? Array.from({length: d.words.flat().length - a.at}, (_, j) => a.at + j)
     : a.kind === 'lines' ? (a.row === 1 ? d.words[0].map((_, j) => j).filter(j => j >= d.k) : d.words[1].map((_, j) => d.words[0].length + j)) : [d.i]);
   for (const chip of d.item.querySelectorAll('.chip')) chip.classList.toggle('moving', moving.has(+chip.dataset.i));
   drawFrame(a.kind === 'lines' ? a.lines : null);
@@ -1041,6 +1046,7 @@ function drop(){
   const d = dropDrag(); if (!d || !d.action) return;
   const a = d.action, card = d.card;
   if (a.kind === 'split') return send(card, {op: 'split', at: a.at}, card.lines, '자막을 나눠 PC로 보냈습니다.');
+  if (a.kind === 'join') return send(card, {op: 'join_prev', at: 0}, card.lines, '앞 자막과 합쳐 PC로 보냈습니다.');
   if (a.kind !== 'lines') return;
   if (!fits(a.lines)) return cueNote('화면 폭을 넘어서 그렇게 바꿀 수 없습니다.', true);
   send(card, {lines: a.lines}, a.lines, a.lines.length === 1 ? '한 줄로 합쳐 PC로 보냈습니다.' : '줄을 바꿔 PC로 보냈습니다.');
@@ -1054,7 +1060,7 @@ function retype(chip){
   pickCue(card.id);
   const input = el('input', {value: chip.textContent, enterkeyhint: 'done', autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false', 'aria-label': '어절 고치기'});
   input.style.width = Math.max(3, chip.textContent.length + 2) + 'em';
-  chip.replaceChildren(input); chip.classList.add('edit');
+  chip.replaceChildren(input); chip.classList.add('edit'); $('cueView').classList.add('typing');
   c.word = {chip, input, card, i: +chip.dataset.i, before: input.value};
   input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); finishWord(true); } else if (e.key === 'Escape') finishWord(false); });
   input.addEventListener('input', () => {
@@ -1070,7 +1076,7 @@ function retyped(w, text){
 }
 function finishWord(save){
   const c = cue; if (!c || !c.word) return;
-  const w = c.word; c.word = null;
+  const w = c.word; c.word = null; $('cueView').classList.remove('typing');
   const text = w.input.value.trim().replace(/\s+/g, ' ');
   const lines = retyped(w, text);
   w.chip.classList.remove('edit'); w.chip.textContent = w.before;
