@@ -72,7 +72,7 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 button.icon{background:transparent;color:var(--accent-text);font-size:26px;line-height:1;padding:4px 10px;min-height:40px}
 .x{background:transparent;color:var(--text3);padding:6px 8px;min-height:32px;font-size:18px;line-height:1}
 .tabs{margin:14px 0 0}
-.tabs button .n{color:var(--text3);font-weight:400;margin-left:4px}
+.tabs button .n,#teamTabs button .n{color:var(--text3);font-weight:400;margin-left:4px}
 .pickList{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:4px}
 .pickList .row{cursor:pointer}
 .pickList .row:first-child{border-top:0}
@@ -117,6 +117,8 @@ label{display:block;font-size:13px;color:var(--text3);margin:12px 0 4px}
 .cueMeta{display:flex;align-items:center;gap:8px;padding:0 4px 4px;font-size:12px;color:var(--text3);min-height:30px}
 .cueMeta b{color:var(--text2);font-weight:600}
 .cueMeta .pill{margin-left:auto}
+.cueMeta .say{margin-left:auto}
+.cueMeta .pill~.say{margin-left:0}
 .play{width:30px;height:30px;min-height:0;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--text2)}
 .play svg{width:13px;height:13px;fill:currentColor;display:block}
 .play.on{background:var(--accent);color:#fff}
@@ -157,6 +159,40 @@ button.me{background:transparent;padding:0;min-height:0;border-radius:50%;width:
 .account{display:flex;align-items:center;gap:14px}
 .account .name{font-size:17px}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* 팀 프로젝트 (remote_team): chapters, who holds them, feedback */
+#teamView{position:fixed;inset:0;background:var(--window);z-index:3;display:flex;flex-direction:column}
+#teamView[hidden]{display:none!important}
+.teamBody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;max-width:560px;width:100%;margin:0 auto;padding:0 16px calc(24px + env(safe-area-inset-bottom))}
+.mine{background:var(--accent-soft);border:1px solid var(--accent);border-radius:14px;padding:12px 14px;margin:10px 0}
+.mine .name{color:var(--accent-text)}
+.mine .tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.mine .tools button{min-height:36px;padding:6px 12px;font-size:14px}
+.mine .tools button.primary{flex:1}
+.chRow .who{display:inline-flex;align-items:center;gap:4px}
+.chRow button{min-height:34px;padding:6px 12px;font-size:13.5px}
+.chRow.held{background:repeating-linear-gradient(135deg,transparent 0 8px,var(--raised) 8px 10px)}
+.chRow.minech{box-shadow:inset 3px 0 0 var(--accent)}
+.badge{font-size:11.5px;padding:2px 7px;border-radius:99px;background:var(--warn);color:#fff;font-weight:600;white-space:nowrap}
+.fb{padding:12px 14px;border-top:1px solid var(--line)}
+.fb:first-child{border-top:0}
+.fb .head{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text3)}
+.fb .head b{color:var(--text2)}
+.fb .quote{font-size:13px;color:var(--text2);border-left:3px solid var(--line-strong);padding:2px 8px;margin:6px 0;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fb .body{white-space:pre-wrap;word-break:break-word}
+.fb.done .body{color:var(--text3)}
+.fb .reply{margin:8px 0 0 12px;padding-left:10px;border-left:2px solid var(--line);font-size:14px}
+.fb .reply .head{font-size:12px}
+.fb .tools{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.fb .tools button{min-height:30px;padding:4px 10px;font-size:13px;background:transparent;color:var(--accent-text)}
+textarea{font:inherit;font-size:16px;color:var(--text);background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;padding:10px 12px;width:100%;min-height:76px;resize:vertical}
+textarea:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.say{font-size:12px;padding:3px 8px;border-radius:99px;background:var(--raised);color:var(--text2);min-height:26px}
+.say.has{background:var(--warn);color:#fff;font-weight:600}
+.chapter .tag{font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:99px;background:var(--panel);color:var(--text2);white-space:nowrap}
+.chapter .tag.me{background:var(--accent);color:#fff}
+.chapter .tag.ok{background:var(--ok-soft);color:var(--ok)}
+.sum{font-size:14px;color:var(--text2);margin:10px 0;line-height:1.7}
+.sum .warn{color:var(--bad)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -192,13 +228,52 @@ button.me{background:transparent;padding:0;min-height:0;border-radius:50%;width:
 
 
 <section id="cueView" hidden aria-label="대사 편집">
-  <div class="cueHead"><button class="ghost" id="cueBack" aria-label="닫기">‹ 목록</button><div class="name" id="cueTitle"></div></div>
+  <div class="cueHead"><button class="ghost" id="cueBack" aria-label="닫기">‹ 목록</button><div class="name" id="cueTitle"></div><button class="primary" id="cueDone" hidden style="min-height:34px;padding:6px 12px">완료…</button></div>
   <div class="cueTop">
     <div class="frame"><canvas id="cueFrame" width="960" height="540" aria-label="자막 미리보기"></canvas></div>
     <div class="cueNote" id="cueNote"></div>
   </div>
   <div class="cueList" id="cueList"></div>
 </section>
+
+<section id="teamView" hidden aria-label="팀 프로젝트">
+  <div class="cueHead"><button class="ghost" id="teamBack" aria-label="닫기">‹ 목록</button><div class="name" id="teamTitle"></div></div>
+  <div class="teamBody">
+    <div class="status" id="teamPc" style="padding:2px 2px 6px"></div>
+    <div id="teamMine"></div>
+    <div class="seg" id="teamTabs" role="tablist">
+      <button data-tab="chapters" role="tab" aria-pressed="true">챕터<span class="n" id="chapterCount"></span></button>
+      <button data-tab="feedback" role="tab" aria-pressed="false">피드백<span class="n" id="feedbackCount"></span></button>
+    </div>
+    <div class="seg" id="fbFilter" hidden>
+      <button data-filter="open" aria-pressed="true">열림</button><button data-filter="all" aria-pressed="false">전체</button><button data-filter="mine" aria-pressed="false">내 의견</button>
+    </div>
+    <div class="card" style="margin-top:8px"><div id="teamList"></div></div>
+    <div class="cueNote" id="teamNote"></div>
+  </div>
+</section>
+
+<div class="sheet" id="fbSheet" role="dialog" aria-modal="true" aria-labelledby="fbTitle">
+  <div>
+    <h3 id="fbTitle">의견</h3>
+    <div class="sub" id="fbWhere" style="white-space:normal"></div>
+    <div class="card" id="fbThreads" style="margin:10px 0"></div>
+    <label for="fbText" id="fbLabel">새 의견</label>
+    <textarea id="fbText" maxlength="2000" placeholder="이 자막에 남길 의견"></textarea>
+    <div class="actions"><button id="fbClose">닫기</button><button class="primary" id="fbSend">남기기</button></div>
+    <div class="error" id="fbError" role="alert"></div>
+  </div>
+</div>
+
+<div class="sheet" id="doneSheet" role="dialog" aria-modal="true" aria-labelledby="doneTitle">
+  <div>
+    <h3 id="doneTitle">챕터 완료</h3>
+    <div class="sum" id="doneSum"></div>
+    <div class="hint" style="white-space:normal">완료하면 팀원 모두에게 바로 보이고, 이 챕터는 다른 사람도 맡을 수 있게 됩니다. 완료는 PC의 PODcut이 PC에서 누른 것과 똑같이 합니다.</div>
+    <div class="actions"><button id="doneCancel">계속 편집</button><button class="primary" id="doneGo">완료</button></div>
+    <div class="error" id="doneError" role="alert"></div>
+  </div>
+</div>
 
 <div class="sheet" id="startSheet" role="dialog" aria-modal="true" aria-labelledby="startTitle">
   <div>
@@ -262,7 +337,10 @@ let token = store.get(), view = null, chosen = null, timer = null, busy = false;
 const MESSAGES = {invalid_code:'코드가 맞지 않거나 만료됐습니다. PC에서 새 코드를 받으세요.', try_later:'잠시 뒤 다시 시도하세요.',
   too_many_commands:'이 PC에 기다리는 분석이 많습니다. 끝난 뒤 다시 시도하세요.', unknown_device:'PC를 찾지 못했습니다.', invalid_command:'요청이 올바르지 않습니다.',
   too_many_edits:'PC가 아직 받지 않은 편집이 많습니다. 잠시 뒤 다시 고치세요.', update_pending:'이 PC는 이미 업데이트를 기다리고 있습니다.',
-  device_online:'켜져 있는 PC는 목록에서 뺄 수 없습니다. PC에서 PODcut을 끈 뒤 다시 시도하세요.', invalid_device:'PC 이름은 40자까지입니다.'};
+  device_online:'켜져 있는 PC는 목록에서 뺄 수 없습니다. PC에서 PODcut을 끈 뒤 다시 시도하세요.', invalid_device:'PC 이름은 40자까지입니다.',
+  membership_required:'이 프로젝트의 참여자가 아닙니다.', profile_required:'PC의 PODcut에서 먼저 로그인해 프로필을 만드세요.',
+  project_unavailable:'프로젝트를 찾지 못했습니다.', project_archived:'팀 드라이브에 보관된 프로젝트입니다.',
+  feedback_missing:'지워졌거나 없는 의견입니다.', invalid_request:'요청이 올바르지 않습니다.'};
 async function rpc(name, body){
   let r;
   try { r = await fetch(API + '/rest/v1/rpc/' + name, {method:'POST', headers:{apikey:KEY, 'Content-Type':'application/json'}, body:JSON.stringify(body), cache:'no-store'}); }
@@ -281,7 +359,7 @@ const ago = (iso, now) => {
   return s < 60 ? '방금' : s < 3600 ? Math.floor(s / 60) + '분 전' : s < 86400 ? Math.floor(s / 3600) + '시간 전' : Math.floor(s / 86400) + '일 전';
 };
 const size = n => n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : Math.max(1, Math.round(n / 1e6)) + ' MB';
-const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } for (const k of kids) if (k != null) e.append(k); return e; };
+const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (v == null) continue; if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } for (const k of kids) if (k != null) e.append(k); return e; };
 const bar = p => el('div', {class: 'bar' + (p == null || p < 0 ? ' wait' : '')}, el('i', p == null || p < 0 ? {} : {style: 'width:' + p + '%'}));
 
 function show(){
@@ -306,10 +384,10 @@ async function pair(code){
 async function refresh(){
   clearTimeout(timer);
   if (!token) return;
-  try { view = await rpc('ac_remote_view', {token}); $('mainError').textContent = ''; render(); if (cue) await cueRefresh(); }
+  try { view = await rpc('ac_remote_view', {token}); $('mainError').textContent = ''; render(); if (cue) await cueRefresh(); if (team || tab === 'team') teamTick(); }
   catch (e) { if (token) $('mainError').textContent = e.message; }
   // An edit on its way: every second, so its result shows as soon as the PC has it.
-  const waiting = cue && (Object.keys(cue.pending).length || listening);
+  const waiting = (cue && (Object.keys(cue.pending).length || listening)) || (team && Object.keys(team.pending).length);
   if (token) timer = setTimeout(refresh, document.hidden ? 30000 : waiting ? 1000 : cue ? 2000 : 3000);
 }
 
@@ -341,12 +419,13 @@ function render(){
   if ($('startSheet').classList.contains('open')) renderFiles();
 
   const projects = state.projects || [];
-  const team = p => !!p.sharing;
-  const counts = {mine: projects.filter(p => !team(p)).length, team: projects.filter(team).length};
-  $('mineCount').textContent = counts.mine; $('teamCount').textContent = counts.team;
+  const shared = p => !!p.sharing;
+  $('mineCount').textContent = projects.filter(p => !shared(p)).length;
+  $('teamCount').textContent = teamList ? teamList.length : projects.filter(shared).length;
   for (const b of $('tabs').children) b.setAttribute('aria-pressed', b.dataset.tab === tab);
-  const shown = projects.filter(p => team(p) === (tab === 'team'));
-  $('projects').replaceChildren(...(shown.length ? shown.map(p => {
+  if (tab === 'team') { renderTeamList(); if (!teamList) loadTeamList(true); }
+  const shown = tab === 'team' ? [] : projects.filter(p => !shared(p));
+  if (tab !== 'team') $('projects').replaceChildren(...(shown.length ? shown.map(p => {
     const running = p.status === '분석 중' || p.status === '마무리 중';
     const editable = p.status === '분석 완료' || p.status === '편집 중';   // has subtitles to edit (remote_cues)
     return el('div', editable ? {class: 'row tap', role: 'button', tabindex: '0', 'aria-label': p.name + ' 대사 편집', onclick: () => openCues(p)} : {class: 'row'},
@@ -355,7 +434,7 @@ function render(){
       running ? bar(p.progress) : null),
       el('span', {class: 'pill' + (running ? ' run' : p.status === '분석 완료' ? ' ok' : '')}, p.status),
       editable ? el('span', {class: 'chev', 'aria-hidden': 'true'}, '›') : null);
-  }) : [el('div', {class: 'empty'}, tab === 'team' ? '팀과 공유한 프로젝트가 없습니다.' : chosen ? '프로젝트가 없습니다. 오른쪽 위 +로 새 프로젝트를 만드세요.' : '—')]));
+  }) : [el('div', {class: 'empty'}, chosen ? '프로젝트가 없습니다. 오른쪽 위 +로 새 프로젝트를 만드세요.' : '—')]));
 
   const canPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
   $('pushCard').hidden = !canPush;
@@ -581,11 +660,13 @@ async function listenRefresh(){
 // lines back at a time. The PC applies them while it does not have the project open.
 let cue = null;   // {project, name, device, doc, stamp, asked, chosen, drag, word, open: chapters unfolded, pending: {commandId: {card, lines}}, failed: {card: message}, note}
 const clock = ms => { const s = Math.floor(ms / 1000); return s >= 3600 ? Math.floor(s / 3600) + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0') : Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-async function openCues(p){
+async function openCues(p, jump){
   if (!chosen) return;
   const place = readPlace(chosen.id, p.pid);
   cue = {project: p.pid, name: p.name, device: chosen.id, doc: null, stamp: null, asked: null, chosen: place.card || null, drag: null, word: null,
-         open: new Set(place.open || []), restore: place.anchor ? place : null, pending: {}, failed: {}, note: ''};
+         open: new Set(place.open || []), restore: jump == null && place.anchor ? place : null, pending: {}, failed: {}, note: '',
+         team: p.team || null, jump: jump == null ? null : jump};
+  showCueDone();
   $('cueTitle').textContent = p.name; $('cueList').replaceChildren(); $('cueView').hidden = false;
   history.pushState({cue: true}, '');
   cueNote(online ? 'PC에서 자막을 불러오는 중… 이 화면을 여는 동안 PC는 원격 접속 중으로 잠깁니다.' : 'PC가 꺼져 있습니다. 마지막으로 받은 자막을 보여 줍니다.');
@@ -648,6 +729,7 @@ function closeCues(leave = true){
   if (cue && cue.word) finishWord(true);   // leaving: a word being retyped is saved
   dropDrag();
   const c = cue; cue = null; $('cueView').hidden = true;
+  if (team) { teamKey = ''; teamTick(true); }
   if (leave && c) rpc('ac_remote_presence', {token, device: c.device, project: null}).catch(() => {});   // the PC unlocks
 }
 function cueNote(text, bad){ if (!cue) return; cue.note = text; $('cueNote').textContent = text; $('cueNote').className = 'cueNote' + (bad ? ' bad' : ''); }
@@ -697,19 +779,21 @@ function renderCues(){
   for (const g of groups) {
     if (!g.cards.length) continue;
     if (g.key !== null) {
-      const open = c.open.has(g.key), label = clock(g.cards[0].at) + ' · ' + g.cards.length + '개';
-      list.push(kept(c, ['chapter', g.key, open, g.title, label], () => el('button', {class: 'chapter', 'aria-expanded': String(open), onclick: () => toggleChapter(g.key)},
-        el('span', {class: 'arrow'}, '›'), el('span', {class: 't'}, g.title || '챕터'), el('span', {class: 'n'}, label))));
+      const open = c.open.has(g.key), label = clock(g.cards[0].at) + ' · ' + g.cards.length + '개', held = chapterTag(c, g.key);
+      list.push(kept(c, ['chapter', g.key, open, g.title, label, held], () => el('button', {class: 'chapter', 'aria-expanded': String(open), onclick: () => toggleChapter(g.key)},
+        el('span', {class: 'arrow'}, '›'), el('span', {class: 't'}, g.title || '챕터'),
+        held ? el('span', {class: 'tag ' + held[0]}, held[1]) : null, el('span', {class: 'n'}, label))));
       if (!open) continue;
     }
     for (const card of g.cards) {
       const waiting = Object.values(c.pending).find(p => p.card === card.id);
-      list.push(kept(c, ['card', card.id, card.at, card.row, waiting ? waiting.lines : card.lines, !!waiting, c.failed[card.id] || ''], () => cueItem(card)));
+      list.push(kept(c, ['card', card.id, card.at, card.row, waiting ? waiting.lines : card.lines, !!waiting, c.failed[card.id] || '', said_(card)], () => cueItem(card)));
     }
   }
   if (!doc.cards.length) list.push(el('div', {class: 'empty'}, '자막이 없습니다. 익평삼 자막 카드가 있는 프로젝트에서 고칠 수 있습니다.'));
   place(c, $('cueList'), list);
   restorePlace();
+  jumpTo();
   drawFrame();
 }
 // A refresh builds only the cards that changed (a long chapter is a thousand
@@ -786,7 +870,7 @@ function cueItem(card){
   if (waiting) item.dataset.waiting = '1';
   return el('div', {class: 'cueWrap'},
     el('div', {class: 'cueMeta'}, el('b', {}, speaker.name || ''), el('span', {}, clock(card.at)), play,
-      waiting ? el('span', {class: 'pill run'}, '저장 중') : failed ? el('span', {class: 'pill bad', title: failed}, '실패') : null),
+      waiting ? el('span', {class: 'pill run'}, '저장 중') : failed ? el('span', {class: 'pill bad', title: failed}, '실패') : null, sayButton(card)),
     item);
 }
 function toggleChapter(key){
@@ -1031,12 +1115,309 @@ function drawFrame(editing){
   ctx.beginPath(); ctx.moveTo((f.textLeft + f.maxLine) * k, 0); ctx.lineTo((f.textLeft + f.maxLine) * k, canvas.height); ctx.stroke(); ctx.setLineDash([]);
 }
 $('cueBack').onclick = () => { if (history.state && history.state.cue) history.back(); else closeCues(); };
-window.addEventListener('popstate', () => { if (cue) closeCues(); });
+window.addEventListener('popstate', () => { if (cue) closeCues(); else if (team) closeTeam(); });
+$('teamBack').onclick = () => { if (history.state && history.state.team) history.back(); else closeTeam(); };
+for (const b of $('teamTabs').children) b.onclick = () => { if (team) { team.tab = b.dataset.tab; teamKey = ''; renderTeam(); } };
+for (const b of $('fbFilter').children) b.onclick = () => { if (team) { team.filter = b.dataset.filter; teamKey = ''; renderTeam(); } };
+$('fbClose').onclick = () => $('fbSheet').classList.remove('open');
+$('fbSend').onclick = sendSay;
+$('doneCancel').onclick = () => $('doneSheet').classList.remove('open');
+$('doneGo').onclick = completeChapter;
+$('cueDone').onclick = () => { if (team) askComplete(); };
 window.addEventListener('pagehide', () => {   // the page closed: the PC unlocks now rather than in 45 s
   if (!cue) return;
   fetch(API + '/rest/v1/rpc/ac_remote_presence', {method: 'POST', keepalive: true, headers: {apikey: KEY, 'Content-Type': 'application/json'},
     body: JSON.stringify({token, device: cue.device, project: null})}).catch(() => {});
 });
+// ── 팀 프로젝트 (remote_team): the team's projects, who holds which chapter and
+// the feedback come from the server (the PC may be off). 맡기, 완료 and 편집 취소
+// are commands to the chosen PC: its PODcut does them in its editor, as a click
+// there would, so a chapter's content is always made by the app itself.
+let teamList = null, teamListAt = 0, teamListBusy = false;
+let team = null;    // {id, title, row, claims, mine, fb: Map id -> row, fbAt, tab, filter, pending: {commandId: {kind, start}}, note}
+let teamKey = '';
+const teamRpc = (action, project, args) => rpc('ac_remote_team', {token, action, project: project || null, args: args || {}});
+const localOf = id => (((chosen && chosen.state) || {}).projects || []).find(p => p.team === id) || null;
+async function loadTeamList(force){
+  if (teamListBusy || (!force && Date.now() - teamListAt < 15000)) return;
+  teamListBusy = true;
+  try { teamList = await teamRpc('list'); teamListAt = Date.now(); if (tab === 'team') renderTeamList(); $('teamCount').textContent = teamList.length; }
+  catch (e) { if (tab === 'team') $('mainError').textContent = e.message; }
+  finally { teamListBusy = false; }
+}
+function renderTeamList(){
+  if (!teamList) { $('projects').replaceChildren(el('div', {class: 'empty'}, '팀 프로젝트를 불러오는 중…')); return; }
+  const rows = teamList.filter(t => !t.deleted_at);
+  $('projects').replaceChildren(...(rows.length ? rows.map(t => {
+    const names = [...new Set((t.claims || []).map(c => c.name))];
+    const sub = [(t.completed || 0) + '/' + (t.chapter_count || 0) + ' 완료', names.length ? names.join(', ') + ' 작업 중' : '',
+                 t.duration_ms ? clock(t.duration_ms) : ''].filter(Boolean).join(' · ');
+    return el('div', {class: 'row tap', role: 'button', tabindex: '0', 'aria-label': (t.title || '팀 프로젝트') + ' 열기', onclick: () => openTeam(t)},
+      el('div', {class: 'main'}, el('div', {class: 'name'}, t.title || '이름 없는 회차'), el('div', {class: 'sub'}, sub)),
+      t.feedback ? el('span', {class: 'badge', title: '열린 의견'}, '의견 ' + t.feedback) : null,
+      !t.analyzed ? el('span', {class: 'pill'}, '분석 대기') : null,
+      el('span', {class: 'chev', 'aria-hidden': 'true'}, '›'));
+  }) : [el('div', {class: 'empty'}, '팀 프로젝트가 없습니다.')]));
+}
+function openTeam(t){
+  team = {id: t.id, title: t.title || '팀 프로젝트', row: t, claims: null, mine: null, fb: new Map(), fbAt: null, tab: 'chapters', filter: 'open', pending: {}, note: ''};
+  teamKey = ''; $('teamTitle').textContent = team.title; $('teamView').hidden = false; $('teamNote').textContent = '';
+  history.pushState({team: true}, '');
+  renderTeam(); teamTick(true);
+}
+function closeTeam(){ team = null; $('teamView').hidden = true; for (const id of ['fbSheet', 'doneSheet']) $(id).classList.remove('open'); loadTeamList(true); }
+let teamBusy = false, teamAt = 0;
+async function teamTick(force){
+  if (tab === 'team' && !team) loadTeamList();
+  const t = team; if (!t) { if (cue && cue.team) loadSaid(); return; }
+  teamPending();
+  if (teamBusy || (!force && Date.now() - teamAt < 4000)) return;
+  teamBusy = true; teamAt = Date.now();
+  try {
+    const [claims, mine, fb] = await Promise.all([teamRpc('claims', t.id), teamRpc('my_claim'),
+      teamRpc('feedback', t.id, {do: 'list', args: t.fbAt ? {since: t.fbAt} : {}})]);
+    if (t !== team) return;
+    t.claims = claims; t.mine = mine;
+    for (const r of fb.rows || []) t.fb.set(r.id, r);
+    t.fbAt = new Date(Date.parse(fb.at) - 10000).toISOString();
+    renderTeam(); if (cue && cue.team === t.id) { renderCues(); showCueDone(); }
+  } catch (e) { if (t === team) teamNote(e.message, true); }
+  finally { teamBusy = false; }
+}
+function teamNote(text, bad){ if (cue && cue.team) cueNote(text, bad); if (!team) return; team.note = text; $('teamNote').textContent = text; $('teamNote').className = 'cueNote' + (bad ? ' bad' : ''); }
+function chapterSpans(t){
+  const chapters = ((t.claims && t.claims.chapters) || []).slice().sort((a, b) => a.start_ms - b.start_ms);
+  const end = t.row.duration_ms || 0;
+  return chapters.map((c, i) => ({start: c.start_ms, end: i + 1 < chapters.length ? chapters[i + 1].start_ms : end, title: c.title || '챕터 ' + (i + 1)}));
+}
+// The chapter this account holds (anywhere), and whether it is this project's, on the chosen PC.
+function myClaim(t){ const c = t && t.mine && t.mine.claim; return c && c.project_id === t.id ? c : null; }
+const heldHere = c => !!(c && chosen && c.device === chosen.id);
+const pcOf = id => ((view && view.devices) || []).find(d => d.id === id);
+function openFeedback(t){ return [...t.fb.values()].filter(r => !r.parent_id && !r.deleted_at && !r.resolved_at); }
+function renderTeam(){
+  const t = team; if (!t) return;
+  const local = localOf(t.id), claim = myClaim(t), other = t.mine && t.mine.claim && !claim ? t.mine.claim : null;
+  const key = JSON.stringify([t.claims, t.mine, [...t.fb.values()].map(r => r.updated_at), t.tab, t.filter, Object.values(t.pending), online, chosen && chosen.id, !!local]);
+  if (key === teamKey) return; teamKey = key;
+  $('teamPc').replaceChildren(el('span', {class: 'dot' + (online ? ' on' : '')}),
+    el('span', {style: 'flex:1'}, !chosen ? 'PC가 없습니다' : pcName(chosen) + (online ? '' : ' · 꺼져 있음') +
+      (local ? ' · 이 PC에 원본 있음' : ' · 이 PC에는 이 회차가 없습니다 (맡기·대사 편집은 원본이 있는 PC로)')));
+  // My chapter, and what can be done with it.
+  const mine = [];
+  if (claim) {
+    const span = chapterSpans(t).find(s => s.start === claim.start_ms), pc = pcOf(claim.device);
+    const where = heldHere(claim) ? '이 PC에서 편집 중' : pc ? pcName(pc) + '에서 편집 중' : '다른 컴퓨터에서 편집 중';
+    const busy = Object.values(t.pending).length > 0, can = heldHere(claim) && online && local && !busy;
+    const tools = [];
+    if (heldHere(claim)) {
+      tools.push(el('button', {class: 'primary', disabled: local ? null : '', onclick: () => openCues({...local, team: t.id}, claim.start_ms)}, '대사 편집'));
+      tools.push(el('button', {disabled: can ? null : '', onclick: () => askComplete()}, '완료…'));
+      tools.push(el('button', {disabled: can ? null : '', style: 'color:var(--bad)', onclick: () => cancelChapter()}, '편집 취소'));
+    } else if (local && online) tools.push(el('button', {class: 'primary', disabled: busy ? '' : null, onclick: () => claimChapter(claim.start_ms, true)}, '이 PC로 가져오기'));
+    mine.push(el('div', {class: 'mine'}, el('div', {class: 'sub'}, '내 챕터 · ' + where),
+      el('div', {class: 'name'}, (span ? span.title : (t.mine.claim.chapter || '챕터')) + (span ? '  ' + clock(span.start) + '–' + clock(span.end) : '')),
+      tools.length ? el('div', {class: 'tools'}, ...tools) : null,
+      !heldHere(claim) && !local ? el('div', {class: 'sub', style: 'white-space:normal;margin-top:6px'}, '편집하려면 위 PC 목록에서 그 PC를 고르세요.') : null));
+  } else if (other) {
+    mine.push(el('div', {class: 'hint', style: 'white-space:normal'}, '다른 회차 ‘' + (other.title || '') + '’의 ‘' + (other.chapter || '챕터') + '’를 맡고 있습니다. 챕터는 한 번에 하나만 맡을 수 있어, 먼저 그 챕터를 완료하거나 편집을 취소해야 합니다.'));
+  }
+  $('teamMine').replaceChildren(...mine);
+  const open = openFeedback(t);
+  $('chapterCount').textContent = chapterSpans(t).length || '';
+  $('feedbackCount').textContent = open.length || '';
+  for (const b of $('teamTabs').children) b.setAttribute('aria-pressed', b.dataset.tab === t.tab);
+  for (const b of $('fbFilter').children) b.setAttribute('aria-pressed', b.dataset.filter === t.filter);
+  $('fbFilter').hidden = t.tab !== 'feedback';
+  if (!t.claims) { $('teamList').replaceChildren(el('div', {class: 'empty'}, '불러오는 중…')); return; }
+  $('teamList').replaceChildren(...(t.tab === 'chapters' ? chapterRows(t, local, claim, other) : feedbackRows(t, local)));
+}
+function chapterRows(t, local, claim, other){
+  const spans = chapterSpans(t), open = openFeedback(t);
+  const done = (t.claims.completed || []), held = (t.claims.claims || []);
+  const pendingClaim = Object.values(t.pending).find(p => p.kind === 'team_claim');
+  if (!spans.length) return [el('div', {class: 'empty'}, '챕터가 없습니다.')];
+  return spans.map(sp => {
+    const h = held.find(c => c.start_ms === sp.start), last = done.filter(d => d.start_ms === sp.start).pop();
+    const mineHere = claim && claim.start_ms === sp.start, n = open.filter(r => r.start_ms >= sp.start && r.start_ms < sp.end).length;
+    const state = mineHere ? '내 챕터' : h ? h.name + ' 작업 중' : last ? '완료 ✓ ' + last.name + ' · ' + ago(last.at, view && view.now) : '비어 있음';
+    let action = null;
+    if (pendingClaim && pendingClaim.start === sp.start) action = el('span', {class: 'pill run'}, '맡는 중…');
+    else if (!h && !claim && !other && local && online && !pendingClaim) action = el('button', {onclick: e => { e.stopPropagation(); claimChapter(sp.start); }}, '맡기');
+    else if (mineHere) action = el('span', {class: 'pill run'}, '내 챕터');
+    return el('div', {class: 'row chRow' + (local ? ' tap' : '') + (h && !mineHere ? ' held' : '') + (mineHere ? ' minech' : ''),
+      role: local ? 'button' : null, onclick: () => { if (local) openCues({...local, team: t.id}, sp.start); }},
+      el('div', {class: 'main'}, el('div', {class: 'name'}, sp.title),
+        el('div', {class: 'sub'}, clock(sp.start) + '–' + clock(sp.end) + ' · ' + state)),
+      n ? el('span', {class: 'badge'}, '의견 ' + n) : null, action);
+  });
+}
+function threads(t, keep){
+  const rows = [...t.fb.values()], roots = rows.filter(r => !r.parent_id && keep(r)).sort((a, b) => a.start_ms - b.start_ms || Date.parse(a.created_at) - Date.parse(b.created_at));
+  return roots.map(r => ({root: r, replies: rows.filter(x => x.parent_id === r.id).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))}));
+}
+function feedbackRows(t, local){
+  const keep = t.filter === 'open' ? r => !r.resolved_at && !r.deleted_at : t.filter === 'mine' ? r => r.mine : () => true;
+  const list = threads(t, keep);
+  if (!list.length) return [el('div', {class: 'empty'}, t.filter === 'open' ? '열린 의견이 없습니다.' : '의견이 없습니다.')];
+  const spans = chapterSpans(t);
+  return list.map(th => thread(th, spans, local ? () => openCues({...local, team: t.id}, th.root.start_ms) : null));
+}
+function thread(th, spans, go){
+  const r = th.root, sp = spans.find(s => r.start_ms >= s.start && r.start_ms < s.end);
+  const box = el('div', {class: 'fb' + (r.resolved_at ? ' done' : '')},
+    el('div', {class: 'head'}, el('b', {}, r.author_name), el('span', {}, (sp ? sp.title + ' · ' : '') + clock(r.start_ms)),
+      r.resolved_at ? el('span', {class: 'pill ok'}, '해결 · ' + (r.resolved_by || '')) : null, el('span', {style: 'margin-left:auto'}, ago(r.created_at, view && view.now))),
+    r.quote ? el('div', {class: 'quote', role: go ? 'button' : null, onclick: () => { if (go) go(); }}, '“' + r.quote + '”') : null,
+    el('div', {class: 'body'}, r.body));
+  for (const x of th.replies) box.append(el('div', {class: 'reply'}, el('div', {class: 'head'}, el('b', {}, x.author_name), el('span', {}, ago(x.created_at, view && view.now))), el('div', {class: 'body'}, x.body)));
+  if (!r.deleted_at) box.append(el('div', {class: 'tools'},
+    el('button', {onclick: () => replyTo(r)}, '답글'),
+    el('button', {onclick: () => feedback(r.resolved_at ? 'reopen' : 'resolve', {id: r.id})}, r.resolved_at ? '다시 열기' : '해결'),
+    r.mine ? el('button', {style: 'color:var(--bad)', onclick: () => { if (confirm('이 의견을 지울까요?')) feedback('delete', {id: r.id}); }}, '지우기') : null,
+    go ? el('button', {onclick: go}, '그 자리로') : null));
+  return box;
+}
+async function feedback(action, args){
+  const t = team || (cue && cue.team && {id: cue.team}); if (!t) return null;
+  try {
+    const row = await teamRpc('feedback', t.id, {do: action, args});
+    const into = team && team.id === t.id ? team.fb : said.rows;
+    if (row && row.id) { into.set(row.id, row); if (row.parent_id && into.get(row.parent_id)) into.get(row.parent_id).updated_at = row.updated_at; }
+    teamKey = ''; renderTeam(); if (cue) { renderCues(); renderSay(); } teamTick(true);
+    return row;
+  } catch (e) { if ($('fbSheet').classList.contains('open')) $('fbError').textContent = e.message; else teamNote(e.message, true); return null; }
+}
+function replyTo(r){
+  const text = prompt(r.author_name + '님의 의견에 답글', '');
+  if (text && text.trim()) feedback('reply', {parent: r.id, body: text.trim()});
+}
+
+// ── 맡기, 완료, 편집 취소: commands to the chosen PC ──
+async function teamCommand(kind, args, start){
+  const t = team; if (!t || !chosen) return null;
+  const local = localOf(t.id); if (!local) { teamNote('이 PC에는 이 회차가 없습니다.', true); return null; }
+  try {
+    const id = await rpc('ac_remote_command', {token, device: chosen.id, kind, args: {project: local.pid, ...args}});
+    t.pending[id] = {kind, start, args}; teamKey = ''; renderTeam(); refresh();
+    return id;
+  } catch (e) { teamNote(e.message, true); return null; }
+}
+function claimChapter(start, takeover){
+  teamNote(takeover ? '이 PC로 가져오는 중… PC가 프로젝트를 열고 챕터를 맡습니다.' : '맡는 중… PC가 프로젝트를 열고 챕터를 맡습니다.');
+  return teamCommand('team_claim', {start_ms: start, takeover: !!takeover}, start);
+}
+function askComplete(){ teamNote('PC에 완료할 내용을 묻는 중…'); teamCommand('team_summary', {}); }
+function cancelChapter(){
+  if (!confirm('완료 전 편집을 모두 버리고 맡기를 끝낼까요?\n버린 편집은 되돌릴 수 없습니다.')) return;
+  teamNote('편집을 취소하는 중…'); teamCommand('team_cancel', {});
+}
+const codeOf = m => ((m || '').match(/^\[([a-z_]+)\]\s*/) || [])[1] || '';
+const textOf = m => (m || '').replace(/^\[[a-z_]+\]\s*/, '');
+function teamPending(){
+  const t = team; if (!t || !view) return;
+  for (const [id, p] of Object.entries(t.pending)) {
+    const e = (view.edits || []).find(x => x.id === id);
+    if (!e || e.status === 'queued' || e.status === 'running') continue;
+    delete t.pending[id]; teamKey = '';
+    const code = codeOf(e.message), text = textOf(e.message);
+    if (e.status === 'done' && p.kind === 'team_summary') { showSummary(text); teamNote(''); }
+    else if (e.status === 'done') { teamNote(text || '했습니다.'); teamTick(true); if (p.kind === 'team_complete') $('doneSheet').classList.remove('open'); }
+    else if (p.kind === 'team_claim' && code === 'claimed_elsewhere') {
+      if (confirm('이 계정이 다른 컴퓨터에서 이 챕터를 편집하고 있습니다.\n이 PC로 가져오면 그 컴퓨터는 편집을 멈춥니다. 그 컴퓨터에서 아직 보관되지 않은 편집은 그 컴퓨터에만 남고, 이 PC는 서버에 마지막으로 보관된 편집본부터 이어 합니다.\n\n이 PC로 가져올까요?')) claimChapter(p.start, true);
+      else teamNote('');
+    } else if (p.kind === 'team_claim' && code === 'draft_pending') {
+      if (confirm('회수된 작업이 남아 있습니다.\n버리고 이 챕터를 맡을까요? 버린 작업은 되돌릴 수 없습니다.')) { teamNote('맡는 중…'); teamCommand('team_claim', {start_ms: p.start, discard: true}, p.start); }
+      else teamNote('');
+    } else {
+      teamNote(text || '하지 못했습니다.', true);
+      if (p.kind === 'team_complete') $('doneError').textContent = text || '완료하지 못했습니다.';
+    }
+    teamTick(true);
+  }
+  renderTeam();
+}
+function showSummary(text){
+  let s = {}; try { s = JSON.parse(text); } catch {}
+  const lines = ['지운 어절 ' + (s.cuts || 0) + '곳' + (s.restored ? ' · 되살림 ' + s.restored + '곳' : ''), '고친 자막·어절 ' + (s.words || 0) + '곳', '자막 나눔 ' + (s.cues || 0) + '곳'];
+  if (s.images) lines.push('이미지 ' + s.images + '개');
+  if (s.chapters > 1) lines.push('이 챕터를 ' + s.chapters + '개로 나눔');
+  $('doneTitle').textContent = '‘' + (s.title || '챕터') + '’ 완료';
+  $('doneSum').replaceChildren(...lines.map(l => el('div', {}, l)), ...((s.warnings || []).length ? [el('div', {class: 'warn'}, '확인해 주세요: ' + s.warnings.join(' · '))] : []));
+  $('doneError').textContent = ''; $('doneGo').disabled = false;
+  $('doneSheet').classList.add('open');
+}
+async function completeChapter(){
+  $('doneGo').disabled = true; $('doneError').textContent = '';
+  const request = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16));
+  teamNote('완료하는 중… PC가 챕터를 서버에 올리고 확인합니다.');
+  if (!await teamCommand('team_complete', {request})) $('doneGo').disabled = false;
+}
+
+// ── In the subtitle cards: feedback, and who holds each chapter ──
+const said = {rows: new Map(), at: null, project: null, busy: false, last: 0};
+function sayRows(){ return team && cue && team.id === cue.team ? team.fb : said.rows; }
+async function loadSaid(){   // the cue view opened without the team screen (not used now, kept simple)
+  const c = cue; if (!c || !c.team || said.busy || Date.now() - said.last < 8000) return;
+  if (said.project !== c.team) { said.rows = new Map(); said.at = null; said.project = c.team; }
+  said.busy = true; said.last = Date.now();
+  try { const fb = await teamRpc('feedback', c.team, {do: 'list', args: said.at ? {since: said.at} : {}}); for (const r of fb.rows || []) said.rows.set(r.id, r); said.at = new Date(Date.parse(fb.at) - 10000).toISOString(); renderCues(); }
+  catch {} finally { said.busy = false; }
+}
+function overlaps(r, card){ const end = card.end || card.at + 1; return r.start_ms < end && (r.end_ms > card.at || r.start_ms >= card.at); }
+function said_(card){ if (!cue || !cue.team) return 0; return [...sayRows().values()].filter(r => !r.parent_id && !r.deleted_at && !r.resolved_at && overlaps(r, card)).length; }
+function sayButton(card){
+  if (!cue || !cue.team) return null;
+  const n = said_(card);
+  return el('button', {class: 'say' + (n ? ' has' : ''), 'aria-label': '의견', onclick: e => { e.stopPropagation(); openSay(card); }}, n ? '의견 ' + n : '의견');
+}
+let sayCard = null;
+function openSay(card){
+  sayCard = card; $('fbError').textContent = ''; $('fbText').value = '';
+  $('fbTitle').textContent = '의견'; $('fbWhere').textContent = clock(card.at) + ' · “' + card.lines.join(' ') + '”';
+  renderSay(); $('fbSheet').classList.add('open');
+}
+function renderSay(){
+  if (!sayCard || !$('fbSheet').classList.contains('open')) return;
+  const rows = sayRows(), list = [...rows.values()].filter(r => !r.parent_id && overlaps(r, sayCard));
+  const th = list.map(r => ({root: r, replies: [...rows.values()].filter(x => x.parent_id === r.id)}));
+  $('fbThreads').hidden = !th.length;
+  $('fbThreads').replaceChildren(...th.map(x => thread(x, team ? chapterSpans(team) : [], null)));
+}
+async function sendSay(){
+  const text = $('fbText').value.trim(); if (!text || !sayCard) return;
+  $('fbSend').disabled = true;
+  const row = await feedback('add', {start_ms: sayCard.at, end_ms: Math.max(sayCard.at, sayCard.end || sayCard.at), quote: sayCard.lines.join(' ').slice(0, 400), body: text});
+  $('fbSend').disabled = false;
+  if (row) { $('fbText').value = ''; renderSay(); }
+}
+function chapterTag(c, key){
+  if (!c.team || !team || team.id !== c.team || !team.claims || key == null || key < 0) return null;
+  const claim = myClaim(team);
+  if (claim && claim.start_ms === key) return ['me', heldHere(claim) ? '내 챕터' : '내 챕터 · 다른 PC'];
+  const h = (team.claims.claims || []).find(x => x.start_ms === key);
+  if (h) return ['', h.name + ' 작업 중'];
+  if ((team.claims.completed || []).some(d => d.start_ms === key)) return ['ok', '완료'];
+  return null;
+}
+function showCueDone(){
+  const c = cue, claim = team && c && c.team === team.id ? myClaim(team) : null;
+  $('cueDone').hidden = !(claim && heldHere(claim));
+}
+// Opened at a time (a chapter, a feedback's place): that card, its chapter unfolded.
+function jumpTo(){
+  const c = cue; if (!c || c.jump == null || !c.doc || !c.doc.cards.length) return;
+  const at = c.jump; c.jump = null;
+  const card = c.doc.cards.filter(x => x.at <= at).pop() || c.doc.cards[0];
+  const chapters = (c.doc.chapters || []).slice().sort((a, b) => a.at - b.at);
+  const ch = chapters.filter(x => x.at <= card.at).pop();
+  if (chapters.length > 1 && ch && !c.open.has(ch.at)) { c.open.add(ch.at); c.jump = at; renderCues(); return; }
+  c.chosen = card.id;
+  const box = $('cueList').querySelector('.cue[data-card="' + CSS.escape(card.id) + '"]');
+  if (box) { box.closest('.cueWrap').scrollIntoView({block: 'center'}); for (const e of $('cueList').querySelectorAll('.cue')) e.classList.toggle('on', e.dataset.card === card.id); }
+  drawFrame(); keepPlace();
+}
+
 const cueList = $('cueList');
 cueList.addEventListener('pointerdown', chipDown);
 document.addEventListener('pointermove', chipMove, {passive: false});
